@@ -1,13 +1,11 @@
 import "dotenv/config";
 import { trpcServer } from "@hono/trpc-server";
 import { auth } from "@slushomat/auth";
+import { createCors, createErrorHandler, healthzResponse } from "@slushomat/api";
 import { pool } from "@slushomat/db";
 import { env } from "@slushomat/env/server";
 import { Hono } from "hono";
-import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
-import { HTTPException } from "hono/http-exception";
-import { ZodError } from "zod";
 import { createContext } from "./trpc/context";
 import { appRouter } from "./trpc/router";
 import { requestLogger } from "./middleware/logger";
@@ -22,11 +20,8 @@ app.use("*", secureHeaders());
 // 2. CORS
 app.use(
   "*",
-  cors({
-    origin: env.CORS_ORIGIN,
-    allowMethods: ["GET", "POST", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
+  createCors({
+    origin: [env.CORS_ORIGIN_ADMIN, env.CORS_ORIGIN_OPERATOR],
   }),
 );
 
@@ -57,7 +52,7 @@ app.use(
 );
 
 // 7. Health endpoints
-app.get("/healthz", (c) => c.json({ status: "ok", uptime: process.uptime() }));
+app.get("/healthz", (c) => c.json(healthzResponse()));
 app.get("/readyz", async (c) => {
   try {
     await pool.query("SELECT 1");
@@ -68,24 +63,7 @@ app.get("/readyz", async (c) => {
 });
 
 // 8. Global error handler (non-tRPC only)
-app.onError((err, c) => {
-  const log = c.get("logger");
-
-  if (err instanceof HTTPException) {
-    log?.warn("HTTP error", { status: err.status, message: err.message });
-    return err.getResponse();
-  }
-
-  if (err instanceof ZodError) {
-    return c.json(
-      { error: "Validation failed", issues: err.flatten() },
-      400,
-    );
-  }
-
-  log?.error("Unhandled error", { error: err.message, stack: err.stack });
-  return c.json({ error: "Internal Server Error" }, 500);
-});
+app.onError(createErrorHandler<AppEnv>());
 
 // 9. 404
 app.notFound((c) =>

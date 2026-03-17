@@ -1,0 +1,24 @@
+{
+  "name": "@slushomat/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./cors": "./src/cors.ts",
+    "./errors": "./src/errors.ts",
+    "./health": "./src/health.ts"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "hono": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@slushomat/config": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "^5"
+  }
+}

@@ -1,16 +1,17 @@
 import { db } from "@slushomat/db";
-import * as schema from "@slushomat/db/schema/auth";
+import * as schema from "@slushomat/db/schema";
 import { env } from "@slushomat/env/server";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { admin } from "better-auth/plugins";
+import { organization } from "better-auth/plugins";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
-
-    schema: schema,
+    schema,
   }),
-  trustedOrigins: [env.CORS_ORIGIN],
+  trustedOrigins: [env.CORS_ORIGIN_ADMIN, env.CORS_ORIGIN_OPERATOR],
   emailAndPassword: {
     enabled: true,
   },
@@ -23,5 +24,21 @@ export const auth = betterAuth({
       httpOnly: true,
     },
   },
-  plugins: [],
+  plugins: [
+    admin(),
+    organization({
+      schema: {
+        organization: {
+          additionalFields: {
+            type: {
+              type: "string",
+              required: true,
+              defaultValue: "operator",
+              input: true,
+            },
+          },
+        },
+      },
+    }),
+  ],
 });

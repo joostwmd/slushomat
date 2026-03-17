@@ -44,16 +44,18 @@ Then, run the development server:
 pnpm run dev
 ```
 
-Open [http://localhost:3001](http://localhost:3001) in your browser to see the web application.
-The API is running at [http://localhost:3000](http://localhost:3000).
+- Admin dashboard: [http://localhost:3002](http://localhost:3002)
+- Operator dashboard: [http://localhost:3003](http://localhost:3003)
+- Web API: [http://localhost:3000](http://localhost:3000)
+- Machine server: [http://localhost:3004](http://localhost:3004)
 
 ## UI Customization
 
 React web apps in this stack share shadcn/ui primitives through `packages/ui`.
 
 - Change design tokens and global styles in `packages/ui/src/styles/globals.css`
-- Update shared primitives in `packages/ui/src/components/*`
-- Adjust shadcn aliases or style config in `packages/ui/components.json` and `apps/web/components.json`
+- Update shared primitives in `packages/ui/src/base/*` and `packages/ui/src/composite/*`
+- Adjust shadcn aliases or style config in `packages/ui/components.json` and each app's `components.json`
 
 ### Add more shared components
 
@@ -66,12 +68,12 @@ npx shadcn@latest add accordion dialog popover sheet table -c packages/ui
 Import shared components like this:
 
 ```tsx
-import { Button } from "@slushomat/ui/components/button";
+import { Button } from "@slushomat/ui/base/button";
 ```
 
 ### Add app-specific blocks
 
-If you want to add app-specific blocks instead of shared primitives, run the shadcn CLI from `apps/web`.
+If you want to add app-specific blocks, run the shadcn CLI from `apps/admin-frontend` or `apps/operator-frontend`.
 
 ## Git Hooks and Formatting
 

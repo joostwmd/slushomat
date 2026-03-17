@@ -10,12 +10,15 @@
     "dev": "turbo dev",
     "build": "turbo build",
     "check-types": "turbo check-types",
-    "dev:web": "turbo -F web dev",
+    "dev:admin": "turbo -F admin-frontend dev",
+    "dev:operator": "turbo -F operator-frontend dev",
     "dev:server": "turbo -F server dev",
+    "dev:machine": "turbo -F machine-server dev",
     "db:push": "turbo -F @slushomat/db db:push",
     "db:studio": "turbo -F @slushomat/db db:studio",
     "db:generate": "turbo -F @slushomat/db db:generate",
     "db:migrate": "turbo -F @slushomat/db db:migrate",
+    "auth:generate": "DOTENV_CONFIG_PATH=apps/server/.env npx auth@latest generate --config packages/auth/src/index.ts",
     "check": "oxlint && oxfmt --write"
   },
   "dependencies": {

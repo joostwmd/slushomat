@@ -5,20 +5,17 @@
   "tsx": true,
   "tailwind": {
     "config": "",
-    "css": "src/styles/globals.css",
+    "css": "../../packages/ui/src/styles/globals.css",
     "baseColor": "neutral",
     "cssVariables": true,
     "prefix": ""
   },
   "iconLibrary": "lucide",
   "aliases": {
-    "components": "@slushomat/ui/base",
+    "components": "@/components",
     "utils": "@slushomat/ui/lib/utils",
-    "hooks": "@slushomat/ui/hooks",
-    "lib": "@slushomat/ui/lib",
-    "ui": "@slushomat/ui/base"
-  },
-  "menuColor": "default",
-  "menuAccent": "subtle",
-  "registries": {}
+    "ui": "@slushomat/ui/base",
+    "lib": "@/lib",
+    "hooks": "@/hooks"
+  }
 }

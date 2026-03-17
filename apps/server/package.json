@@ -16,8 +16,10 @@
   "dependencies": {
     "@hono/node-server": "^1.14.4",
     "@hono/trpc-server": "^0.4.0",
+    "@slushomat/api": "workspace:*",
     "@slushomat/auth": "workspace:*",
     "@slushomat/db": "workspace:*",
+    "drizzle-orm": "^0.45.1",
     "@slushomat/env": "workspace:*",
     "@trpc/server": "catalog:",
     "better-auth": "catalog:",
