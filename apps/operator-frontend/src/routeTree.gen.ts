@@ -14,7 +14,11 @@ import { Route as AuthRouteRouteImport } from './routes/auth/route'
 import { Route as ProtectedRouteRouteImport } from './routes/_protected/route'
 import { Route as ProtectedIndexRouteImport } from './routes/_protected/index'
 import { Route as AuthHandoffRouteImport } from './routes/auth/handoff'
-import { Route as ProtectedDashboardRouteImport } from './routes/_protected/dashboard'
+import { Route as ProtectedOrganizationsRouteImport } from './routes/_protected/organizations'
+import { Route as ProtectedInvitationsRouteImport } from './routes/_protected/invitations'
+import { Route as ProtectedOrgSlugRouteRouteImport } from './routes/_protected/$orgSlug/route'
+import { Route as ProtectedOrgSlugIndexRouteImport } from './routes/_protected/$orgSlug/index'
+import { Route as ProtectedOrgSlugDashboardRouteImport } from './routes/_protected/$orgSlug/dashboard'
 
 const SignInRoute = SignInRouteImport.update({
   id: '/sign-in',
@@ -40,48 +44,101 @@ const AuthHandoffRoute = AuthHandoffRouteImport.update({
   path: '/handoff',
   getParentRoute: () => AuthRouteRoute,
 } as any)
-const ProtectedDashboardRoute = ProtectedDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
+const ProtectedOrganizationsRoute = ProtectedOrganizationsRouteImport.update({
+  id: '/organizations',
+  path: '/organizations',
   getParentRoute: () => ProtectedRouteRoute,
 } as any)
+const ProtectedInvitationsRoute = ProtectedInvitationsRouteImport.update({
+  id: '/invitations',
+  path: '/invitations',
+  getParentRoute: () => ProtectedRouteRoute,
+} as any)
+const ProtectedOrgSlugRouteRoute = ProtectedOrgSlugRouteRouteImport.update({
+  id: '/$orgSlug',
+  path: '/$orgSlug',
+  getParentRoute: () => ProtectedRouteRoute,
+} as any)
+const ProtectedOrgSlugIndexRoute = ProtectedOrgSlugIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ProtectedOrgSlugRouteRoute,
+} as any)
+const ProtectedOrgSlugDashboardRoute =
+  ProtectedOrgSlugDashboardRouteImport.update({
+    id: '/dashboard',
+    path: '/dashboard',
+    getParentRoute: () => ProtectedOrgSlugRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof ProtectedIndexRoute
   '/auth': typeof AuthRouteRouteWithChildren
   '/sign-in': typeof SignInRoute
-  '/dashboard': typeof ProtectedDashboardRoute
+  '/$orgSlug': typeof ProtectedOrgSlugRouteRouteWithChildren
+  '/invitations': typeof ProtectedInvitationsRoute
+  '/organizations': typeof ProtectedOrganizationsRoute
   '/auth/handoff': typeof AuthHandoffRoute
+  '/$orgSlug/dashboard': typeof ProtectedOrgSlugDashboardRoute
+  '/$orgSlug/': typeof ProtectedOrgSlugIndexRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRouteRouteWithChildren
   '/sign-in': typeof SignInRoute
-  '/dashboard': typeof ProtectedDashboardRoute
+  '/invitations': typeof ProtectedInvitationsRoute
+  '/organizations': typeof ProtectedOrganizationsRoute
   '/auth/handoff': typeof AuthHandoffRoute
   '/': typeof ProtectedIndexRoute
+  '/$orgSlug/dashboard': typeof ProtectedOrgSlugDashboardRoute
+  '/$orgSlug': typeof ProtectedOrgSlugIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_protected': typeof ProtectedRouteRouteWithChildren
   '/auth': typeof AuthRouteRouteWithChildren
   '/sign-in': typeof SignInRoute
-  '/_protected/dashboard': typeof ProtectedDashboardRoute
+  '/_protected/$orgSlug': typeof ProtectedOrgSlugRouteRouteWithChildren
+  '/_protected/invitations': typeof ProtectedInvitationsRoute
+  '/_protected/organizations': typeof ProtectedOrganizationsRoute
   '/auth/handoff': typeof AuthHandoffRoute
   '/_protected/': typeof ProtectedIndexRoute
+  '/_protected/$orgSlug/dashboard': typeof ProtectedOrgSlugDashboardRoute
+  '/_protected/$orgSlug/': typeof ProtectedOrgSlugIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/sign-in' | '/dashboard' | '/auth/handoff'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/sign-in'
+    | '/$orgSlug'
+    | '/invitations'
+    | '/organizations'
+    | '/auth/handoff'
+    | '/$orgSlug/dashboard'
+    | '/$orgSlug/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/auth' | '/sign-in' | '/dashboard' | '/auth/handoff' | '/'
+  to:
+    | '/auth'
+    | '/sign-in'
+    | '/invitations'
+    | '/organizations'
+    | '/auth/handoff'
+    | '/'
+    | '/$orgSlug/dashboard'
+    | '/$orgSlug'
   id:
     | '__root__'
     | '/_protected'
     | '/auth'
     | '/sign-in'
-    | '/_protected/dashboard'
+    | '/_protected/$orgSlug'
+    | '/_protected/invitations'
+    | '/_protected/organizations'
     | '/auth/handoff'
     | '/_protected/'
+    | '/_protected/$orgSlug/dashboard'
+    | '/_protected/$orgSlug/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -127,23 +184,70 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthHandoffRouteImport
       parentRoute: typeof AuthRouteRoute
     }
-    '/_protected/dashboard': {
-      id: '/_protected/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof ProtectedDashboardRouteImport
+    '/_protected/organizations': {
+      id: '/_protected/organizations'
+      path: '/organizations'
+      fullPath: '/organizations'
+      preLoaderRoute: typeof ProtectedOrganizationsRouteImport
       parentRoute: typeof ProtectedRouteRoute
+    }
+    '/_protected/invitations': {
+      id: '/_protected/invitations'
+      path: '/invitations'
+      fullPath: '/invitations'
+      preLoaderRoute: typeof ProtectedInvitationsRouteImport
+      parentRoute: typeof ProtectedRouteRoute
+    }
+    '/_protected/$orgSlug': {
+      id: '/_protected/$orgSlug'
+      path: '/$orgSlug'
+      fullPath: '/$orgSlug'
+      preLoaderRoute: typeof ProtectedOrgSlugRouteRouteImport
+      parentRoute: typeof ProtectedRouteRoute
+    }
+    '/_protected/$orgSlug/': {
+      id: '/_protected/$orgSlug/'
+      path: '/'
+      fullPath: '/$orgSlug/'
+      preLoaderRoute: typeof ProtectedOrgSlugIndexRouteImport
+      parentRoute: typeof ProtectedOrgSlugRouteRoute
+    }
+    '/_protected/$orgSlug/dashboard': {
+      id: '/_protected/$orgSlug/dashboard'
+      path: '/dashboard'
+      fullPath: '/$orgSlug/dashboard'
+      preLoaderRoute: typeof ProtectedOrgSlugDashboardRouteImport
+      parentRoute: typeof ProtectedOrgSlugRouteRoute
     }
   }
 }
 
+interface ProtectedOrgSlugRouteRouteChildren {
+  ProtectedOrgSlugDashboardRoute: typeof ProtectedOrgSlugDashboardRoute
+  ProtectedOrgSlugIndexRoute: typeof ProtectedOrgSlugIndexRoute
+}
+
+const ProtectedOrgSlugRouteRouteChildren: ProtectedOrgSlugRouteRouteChildren = {
+  ProtectedOrgSlugDashboardRoute: ProtectedOrgSlugDashboardRoute,
+  ProtectedOrgSlugIndexRoute: ProtectedOrgSlugIndexRoute,
+}
+
+const ProtectedOrgSlugRouteRouteWithChildren =
+  ProtectedOrgSlugRouteRoute._addFileChildren(
+    ProtectedOrgSlugRouteRouteChildren,
+  )
+
 interface ProtectedRouteRouteChildren {
-  ProtectedDashboardRoute: typeof ProtectedDashboardRoute
+  ProtectedOrgSlugRouteRoute: typeof ProtectedOrgSlugRouteRouteWithChildren
+  ProtectedInvitationsRoute: typeof ProtectedInvitationsRoute
+  ProtectedOrganizationsRoute: typeof ProtectedOrganizationsRoute
   ProtectedIndexRoute: typeof ProtectedIndexRoute
 }
 
 const ProtectedRouteRouteChildren: ProtectedRouteRouteChildren = {
-  ProtectedDashboardRoute: ProtectedDashboardRoute,
+  ProtectedOrgSlugRouteRoute: ProtectedOrgSlugRouteRouteWithChildren,
+  ProtectedInvitationsRoute: ProtectedInvitationsRoute,
+  ProtectedOrganizationsRoute: ProtectedOrganizationsRoute,
   ProtectedIndexRoute: ProtectedIndexRoute,
 }
 

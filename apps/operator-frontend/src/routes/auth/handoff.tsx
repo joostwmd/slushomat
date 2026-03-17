@@ -26,10 +26,16 @@ function HandoffPage() {
 
     authClient.oneTimeToken
       .verify({ token })
-      .then(() => {
+      .then(async () => {
         if (cancelled) return;
         setState("redirecting");
-        navigate({ to: "/dashboard" });
+        const { data: orgs } = await authClient.organization.list();
+        const slug = orgs?.[0]?.slug;
+        if (slug) {
+          navigate({ to: "/$orgSlug/dashboard", params: { orgSlug: slug } });
+        } else {
+          navigate({ to: "/invitations" });
+        }
       })
       .catch(() => {
         if (cancelled) return;

@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { trpc } from "@/utils/trpc";
 
-export const Route = createFileRoute("/_protected/dashboard")({
+export const Route = createFileRoute("/_protected/$orgSlug/dashboard")({
   component: OperatorDashboard,
 });
 
@@ -13,7 +13,7 @@ function OperatorDashboard() {
   return (
     <div className="container mx-auto max-w-3xl px-4 py-8">
       <h1 className="mb-4 text-xl font-medium">Operator Dashboard</h1>
-      <p>operator dashbaord content</p>
+      <p>operator dashboard content</p>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { db } from "@slushomat/db";
+import { db, getInitialOrganization } from "@slushomat/db";
 import * as schema from "@slushomat/db/schema";
 import { env } from "@slushomat/env/server";
 import { betterAuth } from "better-auth";
@@ -25,6 +25,27 @@ export const auth = betterAuth({
         type: "string",
         required: false,
         input: true,
+      },
+      activeOrganizationSlug: {
+        type: "string",
+        required: false,
+        input: true,
+      },
+    },
+  },
+  databaseHooks: {
+    session: {
+      create: {
+        before: async (session) => {
+          const org = await getInitialOrganization(session.userId);
+          return {
+            data: {
+              ...session,
+              activeOrganizationId: org?.id ?? null,
+              activeOrganizationSlug: org?.slug ?? null,
+            },
+          };
+        },
       },
     },
   },

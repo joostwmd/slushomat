@@ -20,18 +20,29 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@slushomat/ui/base/sidebar"
-import { ChevronsUpDownIcon, SparklesIcon, BadgeCheckIcon, CreditCardIcon, BellIcon, LogOutIcon } from "lucide-react"
+import { ChevronsUpDownIcon, LogOutIcon, UserXIcon } from "lucide-react"
 
 export function NavUser({
   user,
+  onSignOut,
+  impersonated = false,
+  onStopImpersonating,
 }: {
   user: {
     name: string
     email: string
-    avatar: string
+    avatar?: string
   }
+  onSignOut: () => void | Promise<void>
+  impersonated?: boolean
+  onStopImpersonating?: () => void | Promise<void>
 }) {
   const { isMobile } = useSidebar()
+  const handleAction =
+    impersonated && onStopImpersonating ? onStopImpersonating : onSignOut
+  const actionLabel = impersonated ? "Stop impersonating" : "Sign out"
+  const ActionIcon = impersonated ? UserXIcon : LogOutIcon
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -72,36 +83,9 @@ export function NavUser({
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <SparklesIcon
-                />
-                Upgrade to Pro
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <BadgeCheckIcon
-                />
-                Account
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <CreditCardIcon
-                />
-                Billing
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <BellIcon
-                />
-                Notifications
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <LogOutIcon
-              />
-              Log out
+            <DropdownMenuItem onSelect={() => handleAction()}>
+              <ActionIcon className="size-4" />
+              {actionLabel}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

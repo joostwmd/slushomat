@@ -17,10 +17,10 @@ function SignInPage() {
           const { data, error } = await authClient.signIn.email({
             email,
             password,
-            callbackURL: "/dashboard",
+            callbackURL: "/",
           });
           if (error) return { error: { message: error.message ?? "Sign in failed" } };
-          if (data) navigate({ to: "/dashboard" });
+          if (data) navigate({ to: "/" });
           return {};
         }}
       />

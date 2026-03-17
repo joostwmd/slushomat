@@ -13,8 +13,11 @@ import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as AdminRouteRouteImport } from './routes/_admin/route'
 import { Route as AdminIndexRouteImport } from './routes/_admin/index'
 import { Route as AdminUsersRouteImport } from './routes/_admin/users'
+import { Route as AdminMachinesRouteImport } from './routes/_admin/machines'
 import { Route as AdminDashboardRouteImport } from './routes/_admin/dashboard'
+import { Route as AdminCustomersRouteImport } from './routes/_admin/customers'
 import { Route as AdminCreateCustomerRouteImport } from './routes/_admin/create-customer'
+import { Route as AdminContractsRouteImport } from './routes/_admin/contracts'
 
 const SignInRoute = SignInRouteImport.update({
   id: '/sign-in',
@@ -35,9 +38,19 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminMachinesRoute = AdminMachinesRouteImport.update({
+  id: '/machines',
+  path: '/machines',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminDashboardRoute = AdminDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminCustomersRoute = AdminCustomersRouteImport.update({
+  id: '/customers',
+  path: '/customers',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminCreateCustomerRoute = AdminCreateCustomerRouteImport.update({
@@ -45,18 +58,29 @@ const AdminCreateCustomerRoute = AdminCreateCustomerRouteImport.update({
   path: '/create-customer',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminContractsRoute = AdminContractsRouteImport.update({
+  id: '/contracts',
+  path: '/contracts',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AdminIndexRoute
   '/sign-in': typeof SignInRoute
+  '/contracts': typeof AdminContractsRoute
   '/create-customer': typeof AdminCreateCustomerRoute
+  '/customers': typeof AdminCustomersRoute
   '/dashboard': typeof AdminDashboardRoute
+  '/machines': typeof AdminMachinesRoute
   '/users': typeof AdminUsersRoute
 }
 export interface FileRoutesByTo {
   '/sign-in': typeof SignInRoute
+  '/contracts': typeof AdminContractsRoute
   '/create-customer': typeof AdminCreateCustomerRoute
+  '/customers': typeof AdminCustomersRoute
   '/dashboard': typeof AdminDashboardRoute
+  '/machines': typeof AdminMachinesRoute
   '/users': typeof AdminUsersRoute
   '/': typeof AdminIndexRoute
 }
@@ -64,22 +88,44 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_admin': typeof AdminRouteRouteWithChildren
   '/sign-in': typeof SignInRoute
+  '/_admin/contracts': typeof AdminContractsRoute
   '/_admin/create-customer': typeof AdminCreateCustomerRoute
+  '/_admin/customers': typeof AdminCustomersRoute
   '/_admin/dashboard': typeof AdminDashboardRoute
+  '/_admin/machines': typeof AdminMachinesRoute
   '/_admin/users': typeof AdminUsersRoute
   '/_admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/sign-in' | '/create-customer' | '/dashboard' | '/users'
+  fullPaths:
+    | '/'
+    | '/sign-in'
+    | '/contracts'
+    | '/create-customer'
+    | '/customers'
+    | '/dashboard'
+    | '/machines'
+    | '/users'
   fileRoutesByTo: FileRoutesByTo
-  to: '/sign-in' | '/create-customer' | '/dashboard' | '/users' | '/'
+  to:
+    | '/sign-in'
+    | '/contracts'
+    | '/create-customer'
+    | '/customers'
+    | '/dashboard'
+    | '/machines'
+    | '/users'
+    | '/'
   id:
     | '__root__'
     | '/_admin'
     | '/sign-in'
+    | '/_admin/contracts'
     | '/_admin/create-customer'
+    | '/_admin/customers'
     | '/_admin/dashboard'
+    | '/_admin/machines'
     | '/_admin/users'
     | '/_admin/'
   fileRoutesById: FileRoutesById
@@ -119,11 +165,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/_admin/machines': {
+      id: '/_admin/machines'
+      path: '/machines'
+      fullPath: '/machines'
+      preLoaderRoute: typeof AdminMachinesRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/_admin/dashboard': {
       id: '/_admin/dashboard'
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AdminDashboardRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/_admin/customers': {
+      id: '/_admin/customers'
+      path: '/customers'
+      fullPath: '/customers'
+      preLoaderRoute: typeof AdminCustomersRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/_admin/create-customer': {
@@ -133,19 +193,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCreateCustomerRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/_admin/contracts': {
+      id: '/_admin/contracts'
+      path: '/contracts'
+      fullPath: '/contracts'
+      preLoaderRoute: typeof AdminContractsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
   }
 }
 
 interface AdminRouteRouteChildren {
+  AdminContractsRoute: typeof AdminContractsRoute
   AdminCreateCustomerRoute: typeof AdminCreateCustomerRoute
+  AdminCustomersRoute: typeof AdminCustomersRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
+  AdminMachinesRoute: typeof AdminMachinesRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminContractsRoute: AdminContractsRoute,
   AdminCreateCustomerRoute: AdminCreateCustomerRoute,
+  AdminCustomersRoute: AdminCustomersRoute,
   AdminDashboardRoute: AdminDashboardRoute,
+  AdminMachinesRoute: AdminMachinesRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
