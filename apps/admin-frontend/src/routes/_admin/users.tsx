@@ -52,8 +52,8 @@ function UsersPage() {
       const operatorUrl =
         env.VITE_OPERATOR_URL ??
         window.location.origin.replace("admin", "operator");
+
       window.open(`${operatorUrl}/auth/handoff?token=${token}`, "_blank");
-      await authClient.admin.stopImpersonating();
     } catch (err) {
       toast.error("Could not open operator dashboard. Please try again.");
     } finally {

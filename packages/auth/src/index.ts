@@ -18,6 +18,16 @@ export const auth = betterAuth({
   },
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BETTER_AUTH_URL,
+  session: {
+    // Admin plugin adds impersonatedBy; ensure it's accepted as session field
+    additionalFields: {
+      impersonatedBy: {
+        type: "string",
+        required: false,
+        input: true,
+      },
+    },
+  },
   advanced: {
     defaultCookieAttributes: {
       sameSite: "none",
