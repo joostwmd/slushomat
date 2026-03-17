@@ -26,6 +26,10 @@ export const auth = betterAuth({
   },
   plugins: [
     admin(),
-    organization(),
+    organization({
+      allowUserToCreateOrganization: async (user) => {
+        return user.role === "admin";
+      },
+    }),
   ],
 });
