@@ -16,12 +16,20 @@ function AdminDashboard() {
     <div className="container mx-auto max-w-3xl px-4 py-8">
       <h1 className="mb-4 text-xl font-medium">Admin Dashboard</h1>
       <p className="mb-4">admin dashboard content</p>
-      <Link
-        to="/create-customer"
-        className={cn(buttonVariants(), "inline-flex")}
-      >
-        Create customer
-      </Link>
+      <div className="flex gap-2">
+        <Link
+          to="/users"
+          className={cn(buttonVariants({ variant: "outline" }), "inline-flex")}
+        >
+          Users
+        </Link>
+        <Link
+          to="/create-customer"
+          className={cn(buttonVariants(), "inline-flex")}
+        >
+          Create customer
+        </Link>
+      </div>
     </div>
   );
 }
