@@ -4,7 +4,9 @@
   "main": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./trpc/router": "./src/trpc/router.ts"
+    "./trpc/router": "./src/trpc/router.ts",
+    "./trpc/init": "./src/trpc/init.ts",
+    "./trpc/context": "./src/trpc/context.ts"
   },
   "scripts": {
     "build": "tsdown",

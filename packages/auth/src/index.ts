@@ -5,6 +5,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin } from "better-auth/plugins";
 import { organization } from "better-auth/plugins";
+import { oneTimeToken } from "better-auth/plugins/one-time-token";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -26,6 +27,7 @@ export const auth = betterAuth({
   },
   plugins: [
     admin(),
+    oneTimeToken(),
     organization({
       allowUserToCreateOrganization: async (user) => {
         return user.role === "admin";

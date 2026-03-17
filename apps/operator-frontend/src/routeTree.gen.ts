@@ -10,13 +10,20 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as AuthRouteRouteImport } from './routes/auth/route'
 import { Route as ProtectedRouteRouteImport } from './routes/_protected/route'
 import { Route as ProtectedIndexRouteImport } from './routes/_protected/index'
+import { Route as AuthHandoffRouteImport } from './routes/auth/handoff'
 import { Route as ProtectedDashboardRouteImport } from './routes/_protected/dashboard'
 
 const SignInRoute = SignInRouteImport.update({
   id: '/sign-in',
   path: '/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRouteRoute = AuthRouteRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProtectedRouteRoute = ProtectedRouteRouteImport.update({
@@ -28,6 +35,11 @@ const ProtectedIndexRoute = ProtectedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => ProtectedRouteRoute,
 } as any)
+const AuthHandoffRoute = AuthHandoffRouteImport.update({
+  id: '/handoff',
+  path: '/handoff',
+  getParentRoute: () => AuthRouteRoute,
+} as any)
 const ProtectedDashboardRoute = ProtectedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -36,36 +48,45 @@ const ProtectedDashboardRoute = ProtectedDashboardRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof ProtectedIndexRoute
+  '/auth': typeof AuthRouteRouteWithChildren
   '/sign-in': typeof SignInRoute
   '/dashboard': typeof ProtectedDashboardRoute
+  '/auth/handoff': typeof AuthHandoffRoute
 }
 export interface FileRoutesByTo {
+  '/auth': typeof AuthRouteRouteWithChildren
   '/sign-in': typeof SignInRoute
   '/dashboard': typeof ProtectedDashboardRoute
+  '/auth/handoff': typeof AuthHandoffRoute
   '/': typeof ProtectedIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_protected': typeof ProtectedRouteRouteWithChildren
+  '/auth': typeof AuthRouteRouteWithChildren
   '/sign-in': typeof SignInRoute
   '/_protected/dashboard': typeof ProtectedDashboardRoute
+  '/auth/handoff': typeof AuthHandoffRoute
   '/_protected/': typeof ProtectedIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/sign-in' | '/dashboard'
+  fullPaths: '/' | '/auth' | '/sign-in' | '/dashboard' | '/auth/handoff'
   fileRoutesByTo: FileRoutesByTo
-  to: '/sign-in' | '/dashboard' | '/'
+  to: '/auth' | '/sign-in' | '/dashboard' | '/auth/handoff' | '/'
   id:
     | '__root__'
     | '/_protected'
+    | '/auth'
     | '/sign-in'
     | '/_protected/dashboard'
+    | '/auth/handoff'
     | '/_protected/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   ProtectedRouteRoute: typeof ProtectedRouteRouteWithChildren
+  AuthRouteRoute: typeof AuthRouteRouteWithChildren
   SignInRoute: typeof SignInRoute
 }
 
@@ -76,6 +97,13 @@ declare module '@tanstack/react-router' {
       path: '/sign-in'
       fullPath: '/sign-in'
       preLoaderRoute: typeof SignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_protected': {
@@ -91,6 +119,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof ProtectedIndexRouteImport
       parentRoute: typeof ProtectedRouteRoute
+    }
+    '/auth/handoff': {
+      id: '/auth/handoff'
+      path: '/handoff'
+      fullPath: '/auth/handoff'
+      preLoaderRoute: typeof AuthHandoffRouteImport
+      parentRoute: typeof AuthRouteRoute
     }
     '/_protected/dashboard': {
       id: '/_protected/dashboard'
@@ -116,8 +151,21 @@ const ProtectedRouteRouteWithChildren = ProtectedRouteRoute._addFileChildren(
   ProtectedRouteRouteChildren,
 )
 
+interface AuthRouteRouteChildren {
+  AuthHandoffRoute: typeof AuthHandoffRoute
+}
+
+const AuthRouteRouteChildren: AuthRouteRouteChildren = {
+  AuthHandoffRoute: AuthHandoffRoute,
+}
+
+const AuthRouteRouteWithChildren = AuthRouteRoute._addFileChildren(
+  AuthRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   ProtectedRouteRoute: ProtectedRouteRouteWithChildren,
+  AuthRouteRoute: AuthRouteRouteWithChildren,
   SignInRoute: SignInRoute,
 }
 export const routeTree = rootRouteImport

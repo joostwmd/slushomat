@@ -12,7 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as AdminRouteRouteImport } from './routes/_admin/route'
 import { Route as AdminIndexRouteImport } from './routes/_admin/index'
+import { Route as AdminUsersRouteImport } from './routes/_admin/users'
 import { Route as AdminDashboardRouteImport } from './routes/_admin/dashboard'
+import { Route as AdminCreateCustomerRouteImport } from './routes/_admin/create-customer'
 
 const SignInRoute = SignInRouteImport.update({
   id: '/sign-in',
@@ -28,35 +30,58 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminDashboardRoute = AdminDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminCreateCustomerRoute = AdminCreateCustomerRouteImport.update({
+  id: '/create-customer',
+  path: '/create-customer',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AdminIndexRoute
   '/sign-in': typeof SignInRoute
+  '/create-customer': typeof AdminCreateCustomerRoute
   '/dashboard': typeof AdminDashboardRoute
+  '/users': typeof AdminUsersRoute
 }
 export interface FileRoutesByTo {
   '/sign-in': typeof SignInRoute
+  '/create-customer': typeof AdminCreateCustomerRoute
   '/dashboard': typeof AdminDashboardRoute
+  '/users': typeof AdminUsersRoute
   '/': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_admin': typeof AdminRouteRouteWithChildren
   '/sign-in': typeof SignInRoute
+  '/_admin/create-customer': typeof AdminCreateCustomerRoute
   '/_admin/dashboard': typeof AdminDashboardRoute
+  '/_admin/users': typeof AdminUsersRoute
   '/_admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/sign-in' | '/dashboard'
+  fullPaths: '/' | '/sign-in' | '/create-customer' | '/dashboard' | '/users'
   fileRoutesByTo: FileRoutesByTo
-  to: '/sign-in' | '/dashboard' | '/'
-  id: '__root__' | '/_admin' | '/sign-in' | '/_admin/dashboard' | '/_admin/'
+  to: '/sign-in' | '/create-customer' | '/dashboard' | '/users' | '/'
+  id:
+    | '__root__'
+    | '/_admin'
+    | '/sign-in'
+    | '/_admin/create-customer'
+    | '/_admin/dashboard'
+    | '/_admin/users'
+    | '/_admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -87,6 +112,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/_admin/users': {
+      id: '/_admin/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/_admin/dashboard': {
       id: '/_admin/dashboard'
       path: '/dashboard'
@@ -94,16 +126,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDashboardRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/_admin/create-customer': {
+      id: '/_admin/create-customer'
+      path: '/create-customer'
+      fullPath: '/create-customer'
+      preLoaderRoute: typeof AdminCreateCustomerRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
   }
 }
 
 interface AdminRouteRouteChildren {
+  AdminCreateCustomerRoute: typeof AdminCreateCustomerRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
+  AdminUsersRoute: typeof AdminUsersRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminCreateCustomerRoute: AdminCreateCustomerRoute,
   AdminDashboardRoute: AdminDashboardRoute,
+  AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 
