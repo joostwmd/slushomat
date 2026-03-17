@@ -19,7 +19,10 @@
     "db:generate": "turbo -F @slushomat/db db:generate",
     "db:migrate": "turbo -F @slushomat/db db:migrate",
     "auth:generate": "DOTENV_CONFIG_PATH=apps/server/.env npx auth@latest generate --config packages/auth/src/index.ts",
-    "check": "oxlint && oxfmt --write"
+    "check": "oxlint && oxfmt --write",
+    "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration"
   },
   "dependencies": {
     "@slushomat/env": "workspace:*",
@@ -28,11 +31,20 @@
   },
   "devDependencies": {
     "@slushomat/config": "workspace:*",
+    "@slushomat/db": "workspace:*",
+    "drizzle-orm": "^0.45.1",
+    "server": "workspace:*",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "catalog:",
+    "@vitest/coverage-v8": "^4.1.0",
+    "jsdom": "^29.0.0",
     "oxfmt": "^0.26.0",
     "oxlint": "^1.41.0",
     "turbo": "^2.8.12",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.0"
   },
   "packageManager": "pnpm@10.23.0"
 }
