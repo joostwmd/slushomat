@@ -12,8 +12,8 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",
-    "@slushomat/api": "workspace:*",
     "@slushomat/auth": "workspace:*",
+    "server": "workspace:*",
     "@slushomat/env": "workspace:*",
     "@slushomat/ui": "workspace:*",
     "@tailwindcss/vite": "^4.1.18",
@@ -30,6 +30,7 @@
     "react": "catalog:",
     "react-dom": "catalog:",
     "sonner": "catalog:",
+    "superjson": "^2.2.2",
     "zod": "catalog:"
   },
   "devDependencies": {

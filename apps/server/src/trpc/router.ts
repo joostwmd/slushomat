@@ -1,4 +1,8 @@
-import { protectedProcedure, publicProcedure, router } from "../index";
+import { router } from "./init";
+import {
+  protectedProcedure,
+  publicProcedureWithErrorMapper as publicProcedure,
+} from "./procedures";
 
 export const appRouter = router({
   healthCheck: publicProcedure.query(() => {
@@ -11,4 +15,5 @@ export const appRouter = router({
     };
   }),
 });
+
 export type AppRouter = typeof appRouter;
