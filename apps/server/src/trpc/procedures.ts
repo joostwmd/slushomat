@@ -1,6 +1,6 @@
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { member, organization } from "@slushomat/db/schema";
+import { member } from "@slushomat/db/schema";
 import { publicProcedure } from "./init";
 import { errorMapperMiddleware } from "./middleware/errorMapper";
 
@@ -70,13 +70,7 @@ export const operatorProcedure = withErrorMapper.use(async ({ ctx, next }) => {
   const membership = await ctx.db
     .select()
     .from(member)
-    .innerJoin(organization, eq(member.organizationId, organization.id))
-    .where(
-      and(
-        eq(member.userId, ctx.session.user.id),
-        eq(organization.type, "operator"),
-      ),
-    )
+    .where(eq(member.userId, ctx.session.user.id))
     .limit(1);
   if (membership.length === 0) {
     throw new TRPCError({
