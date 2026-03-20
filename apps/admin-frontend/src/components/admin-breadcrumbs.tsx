@@ -27,6 +27,10 @@ const PATH_CRUMBS: Record<string, Crumb[]> = {
     { label: "Dashboard", to: "/dashboard" },
     { label: "Machines" },
   ],
+  "/products": [
+    { label: "Dashboard", to: "/dashboard" },
+    { label: "Template products" },
+  ],
   "/create-customer": [
     { label: "Dashboard", to: "/dashboard" },
     { label: "Customers", to: "/customers" },

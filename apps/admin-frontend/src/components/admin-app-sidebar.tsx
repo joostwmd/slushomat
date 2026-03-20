@@ -27,6 +27,7 @@ import {
   UsersIcon,
   Building2Icon,
   WrenchIcon,
+  PackageIcon,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -34,6 +35,7 @@ const NAV_ITEMS = [
   { title: "Customers", url: "/customers", icon: <Building2Icon /> },
   { title: "Contracts", url: "/contracts", icon: <FileTextIcon /> },
   { title: "Machines", url: "/machines", icon: <WrenchIcon /> },
+  { title: "Products", url: "/products", icon: <PackageIcon /> },
 ] as const;
 
 type SessionUser = {

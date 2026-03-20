@@ -9,6 +9,7 @@ import {
   machineAdminRouter,
   machineVersionAdminRouter,
 } from "./admin-machines";
+import { templateProductAdminRouter } from "./admin-template-products";
 
 const createOrganizationInput = z.object({
   name: z.string().min(1, "Name is required"),
@@ -51,6 +52,7 @@ const generateUserPasswordOutput = z.object({
 export const adminRouter = router({
   machineVersion: machineVersionAdminRouter,
   machine: machineAdminRouter,
+  templateProduct: templateProductAdminRouter,
   me: adminProcedure.query(({ ctx }) => ({
     user: ctx.user,
     message: "Admin access granted",

@@ -23,6 +23,7 @@
     "@slushomat/api": "workspace:*",
     "@slushomat/auth": "workspace:*",
     "@slushomat/db": "workspace:*",
+    "@slushomat/supabase": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "@slushomat/env": "workspace:*",
     "@trpc/server": "catalog:",

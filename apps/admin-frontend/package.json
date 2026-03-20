@@ -13,6 +13,7 @@
   "dependencies": {
     "@slushomat/auth": "workspace:*",
     "@slushomat/env": "workspace:*",
+    "@slushomat/supabase": "workspace:*",
     "@slushomat/ui": "workspace:*",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-query": "^5.90.12",

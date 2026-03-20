@@ -10,6 +10,13 @@ export const env = createEnv({
     CORS_ORIGIN_ADMIN: z.url(),
     CORS_ORIGIN_OPERATOR: z.url(),
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+    /** Optional — required for template product image uploads */
+    SUPABASE_URL: z.url().optional(),
+    SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+    SUPABASE_STORAGE_BUCKET_TEMPLATE_PRODUCTS: z
+      .string()
+      .min(1)
+      .optional(),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,
