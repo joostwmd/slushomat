@@ -8,6 +8,7 @@ import { ZodError } from "zod";
 import { createCors, formatZodError, healthzResponse } from "@slushomat/api";
 
 import { machineAuthMiddleware } from "./middleware/machine-auth";
+import { purchaseRoute } from "./routes/purchase";
 
 const app = new Hono();
 
@@ -34,6 +35,9 @@ app.get("/healthz", (c) => c.json(healthzResponse()));
 // 4. Protected machine routes
 app.use("/is-killed", machineAuthMiddleware);
 app.get("/is-killed", (c) => c.json({ killed: false }));
+
+app.use("/purchase", machineAuthMiddleware);
+app.route("/purchase", purchaseRoute);
 
 // 6. Error handler
 app.onError((err, c) => {
