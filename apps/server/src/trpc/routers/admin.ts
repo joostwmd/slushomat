@@ -8,7 +8,11 @@ import { organization } from "@slushomat/db/schema";
 import { router } from "../init";
 import { adminProcedure } from "../procedures";
 import { adminBusinessEntityRouter } from "./admin-business-entity";
+import { adminCustomerRouter } from "./admin-customer";
 import { adminMachineDeploymentRouter } from "./admin-machine-deployment";
+import { adminMachineSlotRouter } from "./admin-machine-slot";
+import { adminOperatorProductRouter } from "./admin-operator-product";
+import { adminPurchaseRouter } from "./admin-purchase";
 import {
   machineAdminRouter,
   machineVersionAdminRouter,
@@ -65,6 +69,10 @@ export const adminRouter = router({
   machine: machineAdminRouter,
   templateProduct: templateProductAdminRouter,
   businessEntity: adminBusinessEntityRouter,
+  customer: adminCustomerRouter,
+  purchase: adminPurchaseRouter,
+  operatorProduct: adminOperatorProductRouter,
+  machineSlot: adminMachineSlotRouter,
   operatorContract: adminOperatorContractRouter,
   machineDeployment: adminMachineDeploymentRouter,
   /** For org pickers (businesses, contracts, deployments). */

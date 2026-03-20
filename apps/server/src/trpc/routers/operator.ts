@@ -5,6 +5,7 @@ import { operatorMachineRouter } from "./operator-machines";
 import { operatorMachineSlotRouter } from "./operator-machine-slot";
 import { operatorOperatorContractRouter } from "./operator-operator-contract";
 import { operatorProductRouter } from "./operator-products";
+import { operatorPurchaseRouter } from "./operator-purchase";
 
 export const operatorRouter = router({
   me: operatorProcedure.query(({ ctx }) => ({
@@ -16,4 +17,5 @@ export const operatorRouter = router({
   operatorContract: operatorOperatorContractRouter,
   machine: operatorMachineRouter,
   machineSlot: operatorMachineSlotRouter,
+  purchase: operatorPurchaseRouter,
 });
