@@ -13,6 +13,9 @@ build
 .env
 .env*.local
 
+# Test credentials for machine/purchase scripts (copy from .example, never commit)
+apps/server/scripts/test-endpoints.local.env
+
 # IDEs and editors
 .vscode/*
 !.vscode/settings.json

@@ -15,7 +15,9 @@
     "dev": "portless api.slushomat tsx watch src/index.ts",
     "dev:local": "tsx watch src/index.ts",
     "start": "node dist/index.mjs",
-    "generate:auth-schema": "npx auth generate --config ../../packages/auth/src/index.ts --output ../../packages/db/src/schema/index.ts -y"
+    "generate:auth-schema": "npx auth generate --config ../../packages/auth/src/index.ts --output ../../packages/db/src/schema/index.ts -y",
+    "test:endpoints": "bash scripts/test-endpoints.sh",
+    "simulate-purchase": "bash scripts/simulate-purchase.sh"
   },
   "dependencies": {
     "@hono/node-server": "^1.14.4",

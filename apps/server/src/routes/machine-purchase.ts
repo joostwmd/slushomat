@@ -10,9 +10,9 @@ import {
   purchase,
 } from "@slushomat/db/schema";
 
-import { MACHINE_ERROR_CODES } from "../errors";
+import type { AppEnv } from "../types";
 
-type MachineVariables = { machineId: string };
+const NO_ACTIVE_CONTRACT = "NO_ACTIVE_CONTRACT";
 
 const purchaseBodySchema = z.object({
   operatorProductId: z.string().min(1),
@@ -20,15 +20,12 @@ const purchaseBodySchema = z.object({
   amountInCents: z.number().int().positive(),
 });
 
-export const purchaseRoute = new Hono<{ Variables: MachineVariables }>();
+export const machinePurchaseRoute = new Hono<AppEnv>();
 
-purchaseRoute.post("/", async (c) => {
+machinePurchaseRoute.post("/", async (c) => {
   const machineId = c.get("machineId");
   if (!machineId) {
-    return c.json(
-      { code: MACHINE_ERROR_CODES.INVALID_MACHINE_CREDENTIALS },
-      401,
-    );
+    return c.json({ code: "INVALID_MACHINE_CREDENTIALS" }, 401);
   }
 
   const body = purchaseBodySchema.parse(await c.req.json());
@@ -49,7 +46,7 @@ purchaseRoute.post("/", async (c) => {
     .limit(1);
 
   if (!contractRow) {
-    return c.json({ code: MACHINE_ERROR_CODES.NO_ACTIVE_CONTRACT }, 422);
+    return c.json({ code: NO_ACTIVE_CONTRACT }, 422);
   }
 
   const [deploymentRow] = await db
@@ -77,8 +74,5 @@ purchaseRoute.post("/", async (c) => {
     purchasedAt,
   });
 
-  return c.json(
-    { id, purchasedAt: purchasedAt.toISOString() },
-    201,
-  );
+  return c.json({ id, purchasedAt: purchasedAt.toISOString() }, 201);
 });

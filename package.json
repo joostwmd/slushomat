@@ -13,7 +13,6 @@
     "dev:admin": "turbo -F admin-frontend dev",
     "dev:operator": "turbo -F operator-frontend dev",
     "dev:server": "turbo -F server dev",
-    "dev:machine": "turbo -F machine-server dev",
     "db:push": "turbo -F @slushomat/db db:push",
     "db:studio": "turbo -F @slushomat/db db:studio",
     "db:generate": "turbo -F @slushomat/db db:generate",

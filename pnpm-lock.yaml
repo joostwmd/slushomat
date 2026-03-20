@@ -214,15 +214,24 @@ importers:
       '@slushomat/auth':
         specifier: workspace:*
         version: link:../../packages/auth
-      '@slushomat/db':
-        specifier: workspace:*
-        version: link:../../packages/db
+      '@trpc/client':
+        specifier: 'catalog:'
+        version: 11.13.4(@trpc/server@11.13.4(typescript@5.9.3))(typescript@5.9.3)
       dotenv:
         specifier: 'catalog:'
         version: 17.3.1
       hono:
         specifier: 'catalog:'
         version: 4.12.8
+      server:
+        specifier: workspace:*
+        version: link:../server
+      superjson:
+        specifier: ^2.2.2
+        version: 2.2.6
+      undici:
+        specifier: ^7.24.4
+        version: 7.24.4
       zod:
         specifier: 'catalog:'
         version: 4.3.6

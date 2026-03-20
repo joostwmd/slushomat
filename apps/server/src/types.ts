@@ -10,6 +10,7 @@ export type AppEnv = {
   Variables: {
     user: SessionUser | null;
     session: SessionData | null;
+    machineId?: string;
     requestId: string;
     logger: {
       info: (msg: string, meta?: object) => void;
