@@ -1,14 +1,19 @@
 import { randomBytes } from "node:crypto";
+import { desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { APIError } from "better-auth";
 import { z } from "zod";
 import { auth } from "@slushomat/auth";
+import { organization } from "@slushomat/db/schema";
 import { router } from "../init";
 import { adminProcedure } from "../procedures";
+import { adminBusinessEntityRouter } from "./admin-business-entity";
+import { adminMachineDeploymentRouter } from "./admin-machine-deployment";
 import {
   machineAdminRouter,
   machineVersionAdminRouter,
 } from "./admin-machines";
+import { adminOperatorContractRouter } from "./admin-operator-contract";
 import { templateProductAdminRouter } from "./admin-template-products";
 
 const createOrganizationInput = z.object({
@@ -49,10 +54,33 @@ const generateUserPasswordOutput = z.object({
   password: z.string(),
 });
 
+const organizationSummary = z.object({
+  id: z.string(),
+  name: z.string(),
+  slug: z.string(),
+});
+
 export const adminRouter = router({
   machineVersion: machineVersionAdminRouter,
   machine: machineAdminRouter,
   templateProduct: templateProductAdminRouter,
+  businessEntity: adminBusinessEntityRouter,
+  operatorContract: adminOperatorContractRouter,
+  machineDeployment: adminMachineDeploymentRouter,
+  /** For org pickers (businesses, contracts, deployments). */
+  listOrganizations: adminProcedure
+    .output(z.array(organizationSummary))
+    .query(async ({ ctx }) => {
+      const rows = await ctx.db
+        .select({
+          id: organization.id,
+          name: organization.name,
+          slug: organization.slug,
+        })
+        .from(organization)
+        .orderBy(desc(organization.createdAt));
+      return rows;
+    }),
   me: adminProcedure.query(({ ctx }) => ({
     user: ctx.user,
     message: "Admin access granted",

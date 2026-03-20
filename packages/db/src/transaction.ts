@@ -3,9 +3,12 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { db } from "./connection";
 import { dbSafe } from "./safety-net";
 
-type DrizzleTransaction = Parameters<
+export type DrizzleTransaction = Parameters<
   Parameters<typeof db.transaction>[0]
 >[0];
+
+/** Used by model-factory repositories — callback runs inside `withTransaction` (uses `tx` proxy). */
+export type Transact = <T>(callback: () => Promise<T>) => Promise<T>;
 
 const transactionStorage = new AsyncLocalStorage<DrizzleTransaction>();
 
@@ -39,3 +42,6 @@ export async function withTransaction<T>(
     }, config),
   );
 }
+
+/** Pass to model-factory `StaticTable` / `VersionedTable` constructors. */
+export const runInTransaction: Transact = (callback) => withTransaction(callback);

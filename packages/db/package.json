@@ -8,6 +8,12 @@
     "./schema": {
       "default": "./src/schema/index.ts"
     },
+    "./model-factory": {
+      "default": "./src/model-factory/index.ts"
+    },
+    "./model-factory/runtime": {
+      "default": "./src/model-factory/runtime.ts"
+    },
     "./*": {
       "default": "./src/*.ts"
     }
