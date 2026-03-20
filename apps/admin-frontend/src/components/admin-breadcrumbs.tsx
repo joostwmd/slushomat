@@ -6,41 +6,95 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@slushomat/ui/base/breadcrumb";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
-import { Fragment } from "react";
+import { Fragment, useMemo } from "react";
+
+import { trpc } from "@/utils/trpc";
 
 type Crumb = { label: string; to?: string };
 
-const PATH_CRUMBS: Record<string, Crumb[]> = {
+const DASH: Crumb = { label: "Dashboard", to: "/dashboard" };
+
+/** Static routes under `/_admin` (browser pathname has no `/_admin` prefix). */
+const STATIC_CRUMBS: Record<string, Crumb[]> = {
   "/": [{ label: "Dashboard" }],
   "/dashboard": [{ label: "Dashboard" }],
-  "/users": [{ label: "Dashboard", to: "/dashboard" }, { label: "Users" }],
-  "/customers": [
-    { label: "Dashboard", to: "/dashboard" },
-    { label: "Customers" },
-  ],
-  "/contracts": [
-    { label: "Dashboard", to: "/dashboard" },
-    { label: "Contracts" },
-  ],
-  "/machines": [
-    { label: "Dashboard", to: "/dashboard" },
-    { label: "Machines" },
-  ],
-  "/products": [
-    { label: "Dashboard", to: "/dashboard" },
-    { label: "Template products" },
-  ],
-  "/create-customer": [
-    { label: "Dashboard", to: "/dashboard" },
-    { label: "Customers", to: "/customers" },
-    { label: "Create customer" },
-  ],
+  "/users": [DASH, { label: "Users" }],
+  "/customers": [DASH, { label: "Customers" }],
+  "/customers/": [DASH, { label: "Customers" }],
+  "/contracts": [DASH, { label: "Contracts" }],
+  "/machines": [DASH, { label: "Machines" }],
+  "/deployments": [DASH, { label: "Deployments" }],
+  "/products": [DASH, { label: "Template products" }],
+  "/businesses": [DASH, { label: "Businesses" }],
+  "/create-customer": [DASH, { label: "Customers", to: "/customers" }, { label: "Create customer" }],
 };
+
+function shortId(id: string, head = 8, tail = 4): string {
+  if (id.length <= head + tail + 1) return id;
+  return `${id.slice(0, head)}…${id.slice(-tail)}`;
+}
+
+function normalizePath(pathname: string): string {
+  if (pathname === "/customers") return "/customers/";
+  return pathname;
+}
+
+function parseCustomerPaths(pathname: string): {
+  customerId: string | null;
+  machineId: string | null;
+} {
+  const machine = pathname.match(/^\/customers\/([^/]+)\/machines\/([^/]+)$/);
+  if (machine) {
+    return { customerId: machine[1]!, machineId: machine[2]! };
+  }
+  const customer = pathname.match(/^\/customers\/([^/]+)$/);
+  if (customer && customer[1] !== "") {
+    return { customerId: customer[1]!, machineId: null };
+  }
+  return { customerId: null, machineId: null };
+}
 
 export function AdminBreadcrumbs() {
   const { pathname } = useLocation();
-  const items = PATH_CRUMBS[pathname] ?? [{ label: "Admin" }];
+  const norm = normalizePath(pathname);
+  const { customerId, machineId } = parseCustomerPaths(pathname);
+
+  const orgQuery = useQuery({
+    ...trpc.admin.customer.get.queryOptions({
+      organizationId: customerId ?? "",
+    }),
+    enabled: !!customerId,
+  });
+
+  const items = useMemo((): Crumb[] => {
+    if (customerId) {
+      const orgLabel = orgQuery.isPending
+        ? "…"
+        : (orgQuery.data?.name ?? shortId(customerId));
+      const base: Crumb[] = [
+        DASH,
+        { label: "Customers", to: "/customers" },
+        ...(machineId
+          ? [
+              { label: orgLabel, to: `/customers/${customerId}` },
+              { label: `Machine ${shortId(machineId)}` },
+            ]
+          : [{ label: orgLabel }]),
+      ];
+      return base;
+    }
+
+    return STATIC_CRUMBS[norm] ?? STATIC_CRUMBS[pathname] ?? [{ label: "Admin" }];
+  }, [
+    customerId,
+    machineId,
+    norm,
+    pathname,
+    orgQuery.data?.name,
+    orgQuery.isPending,
+  ]);
 
   return (
     <Breadcrumb className="min-w-0 flex-1">

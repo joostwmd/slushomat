@@ -1,4 +1,4 @@
-import { Button, buttonVariants } from "@slushomat/ui/base/button";
+import { buttonVariants } from "@slushomat/ui/base/button";
 import {
   Card,
   CardContent,
@@ -113,14 +113,13 @@ function CustomerDetailPage() {
     return (
       <div className="container mx-auto max-w-5xl px-4 py-8">
         <p className="text-sm text-destructive">Organization not found.</p>
-        <Button
-          className="mt-4"
-          variant="outline"
-          size="sm"
-          render={<Link to="/customers" />}
-        >
-          ← Customers
-        </Button>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Use the breadcrumb trail or{" "}
+          <Link to="/customers" className="text-primary underline-offset-4 hover:underline">
+            customers list
+          </Link>{" "}
+          to continue.
+        </p>
       </div>
     );
   }
@@ -130,14 +129,6 @@ function CustomerDetailPage() {
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8">
       <div className="mb-6 flex flex-wrap items-center gap-3">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-muted-foreground"
-          render={<Link to="/customers" />}
-        >
-          ← Customers
-        </Button>
         {orgQuery.isPending ? (
           <span className="text-sm text-muted-foreground">Loading…</span>
         ) : org ? (

@@ -96,7 +96,11 @@ export function AdminAppSidebar({ user }: { user: SessionUser }) {
           <SidebarGroup>
             <SidebarMenu>
               {NAV_ITEMS.map((item) => {
-                const isActive = location.pathname === item.url;
+                const isActive =
+                  location.pathname === item.url ||
+                  (item.url === "/customers" &&
+                    (location.pathname === "/customers/" ||
+                      location.pathname.startsWith("/customers/")));
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton

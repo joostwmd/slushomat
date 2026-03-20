@@ -1,4 +1,4 @@
-import { Button, buttonVariants } from "@slushomat/ui/base/button";
+import { buttonVariants } from "@slushomat/ui/base/button";
 import {
   Card,
   CardContent,
@@ -115,20 +115,10 @@ function AdminMachineDetailPage() {
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8">
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground"
-            render={
-              <Link
-                to="/customers/$customerId"
-                params={{ customerId }}
-              />
-            }
-          >
-            ← {org?.name ?? "Customer"}
-          </Button>
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground">
+            {org?.name ?? "Organization"}
+          </p>
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="font-mono text-lg font-medium">{machineId}</h1>
             {machineRow ? (
