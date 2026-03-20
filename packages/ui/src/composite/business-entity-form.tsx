@@ -1,7 +1,5 @@
 "use client";
 
-import * as React from "react";
-
 import { Input } from "@slushomat/ui/base/input";
 import { Label } from "@slushomat/ui/base/label";
 import { cn } from "@slushomat/ui/lib/utils";
