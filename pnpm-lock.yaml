@@ -248,6 +248,9 @@ importers:
       '@slushomat/env':
         specifier: workspace:*
         version: link:../../packages/env
+      '@slushomat/supabase':
+        specifier: workspace:*
+        version: link:../../packages/supabase
       '@slushomat/ui':
         specifier: workspace:*
         version: link:../../packages/ui
