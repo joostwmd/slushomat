@@ -37,11 +37,8 @@ function RootComponent() {
         disableTransitionOnChange
         storageKey="admin-ui-theme"
       >
-        <div className="grid h-svh grid-rows-[auto_1fr]">
-          <header className="border-b px-4 py-2">
-            <span className="font-medium">Slushomat Admin</span>
-          </header>
-          <main>
+        <div className="flex min-h-svh flex-col">
+          <main className="min-h-0 flex-1">
             <Outlet />
           </main>
         </div>

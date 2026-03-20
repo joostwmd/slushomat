@@ -14,8 +14,14 @@ import type { AppEnv } from "./types";
 
 const app = new Hono<AppEnv>();
 
-// 1. Security headers
-app.use("*", secureHeaders());
+// 1. Security headers — CORP must allow cross-origin reads for sibling subdomains
+// (admin.slushomat → api.slushomat). CORS still restricts which origins may call the API.
+app.use(
+  "*",
+  secureHeaders({
+    crossOriginResourcePolicy: "cross-origin",
+  }),
+);
 
 // 2. CORS
 app.use(
@@ -70,15 +76,21 @@ app.notFound((c) =>
   c.json({ error: "Not Found", path: c.req.path }, 404),
 );
 
-// Serve
+// Serve (respect PORT/HOST from portless and other hosts)
 import { serve } from "@hono/node-server";
+
+const port = Number.parseInt(process.env.PORT ?? "", 10);
+const listenPort = Number.isFinite(port) && port > 0 ? port : 3000;
+const hostname = process.env.HOST;
 
 serve(
   {
     fetch: app.fetch,
-    port: 3000,
+    port: listenPort,
+    ...(hostname ? { hostname } : {}),
   },
   (info) => {
-    console.log(`Server is running on http://localhost:${info.port}`);
+    const host = hostname ?? "localhost";
+    console.log(`Server is running on http://${host}:${info.port}`);
   },
 );

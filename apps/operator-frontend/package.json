@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
+    "dev": "portless operator.slushomat vite dev",
+    "dev:local": "vite dev",
     "build": "vite build",
     "serve": "vite preview",
     "check-types": "tsc --noEmit"

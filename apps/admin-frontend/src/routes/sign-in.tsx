@@ -12,7 +12,7 @@ function SignInPage() {
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
 
   return (
-    <div className="flex min-h-[calc(100svh-theme(spacing.14))] items-center justify-center px-4">
+    <div className="flex min-h-svh items-center justify-center px-4">
       <AuthForm
         mode={mode}
         onModeToggle={() => setMode((m) => (m === "sign-in" ? "sign-up" : "sign-in"))}

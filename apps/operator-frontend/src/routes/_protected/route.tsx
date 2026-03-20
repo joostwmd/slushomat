@@ -1,8 +1,14 @@
 import { authClient } from "@slushomat/auth/client";
-import { SidebarInset, SidebarProvider } from "@slushomat/ui/base/sidebar";
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@slushomat/ui/base/sidebar";
+import { Separator } from "@slushomat/ui/base/separator";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
 import { OperatorAppSidebar } from "@/components/operator-app-sidebar";
+import { OperatorBreadcrumbs } from "@/components/operator-breadcrumbs";
 
 export const Route = createFileRoute("/_protected")({
   component: ProtectedLayoutComponent,
@@ -29,6 +35,16 @@ function ProtectedLayoutComponent() {
     <SidebarProvider>
       <OperatorAppSidebar />
       <SidebarInset>
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+          <div className="flex items-center gap-2">
+            <SidebarTrigger />
+            <Separator
+              orientation="vertical"
+              className="data-[orientation=vertical]:h-4"
+            />
+          </div>
+          <OperatorBreadcrumbs />
+        </header>
         <Outlet />
       </SidebarInset>
     </SidebarProvider>

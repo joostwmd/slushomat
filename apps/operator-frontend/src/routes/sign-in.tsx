@@ -10,7 +10,7 @@ function SignInPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="flex min-h-[calc(100svh-theme(spacing.14))] items-center justify-center px-4">
+    <div className="flex min-h-svh items-center justify-center px-4">
       <AuthForm
         mode="sign-in"
         onSignIn={async (email, password) => {

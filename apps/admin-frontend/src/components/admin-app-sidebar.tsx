@@ -1,17 +1,23 @@
 "use client";
 
 import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@slushomat/ui/base/avatar";
+import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
-  SidebarGroupLabel,
+  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
 } from "@slushomat/ui/base/sidebar";
 import { NavUser } from "@slushomat/ui/base/nav-user";
+import { getAdminOrgBrand } from "@/config/admin-brand";
 import { authClient } from "@slushomat/auth/client";
 import { Link, useLocation } from "@tanstack/react-router";
 import {
@@ -36,6 +42,7 @@ type SessionUser = {
 
 export function AdminAppSidebar({ user }: { user: SessionUser }) {
   const location = useLocation();
+  const org = getAdminOrgBrand();
 
   const navUser = {
     name: user.name ?? "",
@@ -45,9 +52,34 @@ export function AdminAppSidebar({ user }: { user: SessionUser }) {
 
   return (
     <Sidebar collapsible="icon">
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              size="lg"
+              render={<Link to="/dashboard" />}
+              tooltip={{ children: org.name }}
+            >
+              <Avatar className="size-8 rounded-lg">
+                {org.logoUrl ? (
+                  <AvatarImage src={org.logoUrl} alt="" />
+                ) : null}
+                <AvatarFallback className="rounded-lg bg-sidebar-primary text-sm font-semibold text-sidebar-primary-foreground">
+                  {org.initial}
+                </AvatarFallback>
+              </Avatar>
+              <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-semibold">{org.name}</span>
+                <span className="truncate text-xs text-muted-foreground">
+                  {org.subtitle}
+                </span>
+              </div>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Admin</SidebarGroupLabel>
           <SidebarMenu>
             {NAV_ITEMS.map((item) => {
               const isActive = location.pathname === item.url;

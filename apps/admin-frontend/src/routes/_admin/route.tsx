@@ -4,9 +4,11 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@slushomat/ui/base/sidebar";
+import { Separator } from "@slushomat/ui/base/separator";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
 import { AdminAppSidebar } from "@/components/admin-app-sidebar";
+import { AdminBreadcrumbs } from "@/components/admin-breadcrumbs";
 import { RoleBlockScreen } from "@/components/role-block-screen";
 
 export const Route = createFileRoute("/_admin")({
@@ -31,7 +33,14 @@ function AdminLayoutComponent() {
       <AdminAppSidebar user={session.user} />
       <SidebarInset>
         <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger />
+          <div className="flex items-center gap-2">
+            <SidebarTrigger />
+            <Separator
+              orientation="vertical"
+              className="data-[orientation=vertical]:h-4"
+            />
+          </div>
+          <AdminBreadcrumbs />
         </header>
         {blocked ? <RoleBlockScreen /> : <Outlet />}
       </SidebarInset>
