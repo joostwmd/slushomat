@@ -169,6 +169,16 @@ function OperatorMachineDetailPage() {
           Model {m.versionNumber}
           {m.disabled ? " · disabled" : ""}
         </p>
+        <Link
+          to="/$orgSlug/machines/$machineId/purchases"
+          params={{ orgSlug, machineId }}
+          className={cn(
+            buttonVariants({ variant: "outline", size: "sm" }),
+            "mt-3 inline-flex",
+          )}
+        >
+          View purchases
+        </Link>
       </div>
 
       <p className="mb-6 text-sm text-muted-foreground">

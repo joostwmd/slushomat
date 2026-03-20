@@ -22,11 +22,15 @@ import {
 import { BusinessEntityListRow } from "@slushomat/ui/composite/business-entity-list-row";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { trpc } from "@/utils/trpc";
 
 export const Route = createFileRoute("/_admin/businesses")({
+  validateSearch: (raw: Record<string, unknown>) => ({
+    organizationId:
+      typeof raw.organizationId === "string" ? raw.organizationId : undefined,
+  }),
   component: AdminBusinessesPage,
 });
 
@@ -63,10 +67,17 @@ const emptyForm = (): BusinessEntityFormValues => ({
 });
 
 function AdminBusinessesPage() {
+  const search = Route.useSearch();
   const queryClient = useQueryClient();
   const orgsQuery = useQuery(trpc.admin.listOrganizations.queryOptions());
 
   const [organizationId, setOrganizationId] = useState<string>("");
+
+  useEffect(() => {
+    if (search.organizationId) {
+      setOrganizationId(search.organizationId);
+    }
+  }, [search.organizationId]);
   const orgOptions = useMemo(
     () => orgsQuery.data ?? [],
     [orgsQuery.data],

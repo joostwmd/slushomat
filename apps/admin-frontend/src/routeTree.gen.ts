@@ -21,6 +21,8 @@ import { Route as AdminCustomersRouteImport } from './routes/_admin/customers'
 import { Route as AdminCreateCustomerRouteImport } from './routes/_admin/create-customer'
 import { Route as AdminContractsRouteImport } from './routes/_admin/contracts'
 import { Route as AdminBusinessesRouteImport } from './routes/_admin/businesses'
+import { Route as AdminCustomersCustomerIdRouteImport } from './routes/_admin/customers.$customerId'
+import { Route as AdminCustomersCustomerIdMachinesMachineIdRouteImport } from './routes/_admin/customers.$customerId.machines.$machineId'
 
 const SignInRoute = SignInRouteImport.update({
   id: '/sign-in',
@@ -81,6 +83,18 @@ const AdminBusinessesRoute = AdminBusinessesRouteImport.update({
   path: '/businesses',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminCustomersCustomerIdRoute =
+  AdminCustomersCustomerIdRouteImport.update({
+    id: '/$customerId',
+    path: '/$customerId',
+    getParentRoute: () => AdminCustomersRoute,
+  } as any)
+const AdminCustomersCustomerIdMachinesMachineIdRoute =
+  AdminCustomersCustomerIdMachinesMachineIdRouteImport.update({
+    id: '/machines/$machineId',
+    path: '/machines/$machineId',
+    getParentRoute: () => AdminCustomersCustomerIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AdminIndexRoute
@@ -88,25 +102,29 @@ export interface FileRoutesByFullPath {
   '/businesses': typeof AdminBusinessesRoute
   '/contracts': typeof AdminContractsRoute
   '/create-customer': typeof AdminCreateCustomerRoute
-  '/customers': typeof AdminCustomersRoute
+  '/customers': typeof AdminCustomersRouteWithChildren
   '/dashboard': typeof AdminDashboardRoute
   '/deployments': typeof AdminDeploymentsRoute
   '/machines': typeof AdminMachinesRoute
   '/products': typeof AdminProductsRoute
   '/users': typeof AdminUsersRoute
+  '/customers/$customerId': typeof AdminCustomersCustomerIdRouteWithChildren
+  '/customers/$customerId/machines/$machineId': typeof AdminCustomersCustomerIdMachinesMachineIdRoute
 }
 export interface FileRoutesByTo {
   '/sign-in': typeof SignInRoute
   '/businesses': typeof AdminBusinessesRoute
   '/contracts': typeof AdminContractsRoute
   '/create-customer': typeof AdminCreateCustomerRoute
-  '/customers': typeof AdminCustomersRoute
+  '/customers': typeof AdminCustomersRouteWithChildren
   '/dashboard': typeof AdminDashboardRoute
   '/deployments': typeof AdminDeploymentsRoute
   '/machines': typeof AdminMachinesRoute
   '/products': typeof AdminProductsRoute
   '/users': typeof AdminUsersRoute
   '/': typeof AdminIndexRoute
+  '/customers/$customerId': typeof AdminCustomersCustomerIdRouteWithChildren
+  '/customers/$customerId/machines/$machineId': typeof AdminCustomersCustomerIdMachinesMachineIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -115,13 +133,15 @@ export interface FileRoutesById {
   '/_admin/businesses': typeof AdminBusinessesRoute
   '/_admin/contracts': typeof AdminContractsRoute
   '/_admin/create-customer': typeof AdminCreateCustomerRoute
-  '/_admin/customers': typeof AdminCustomersRoute
+  '/_admin/customers': typeof AdminCustomersRouteWithChildren
   '/_admin/dashboard': typeof AdminDashboardRoute
   '/_admin/deployments': typeof AdminDeploymentsRoute
   '/_admin/machines': typeof AdminMachinesRoute
   '/_admin/products': typeof AdminProductsRoute
   '/_admin/users': typeof AdminUsersRoute
   '/_admin/': typeof AdminIndexRoute
+  '/_admin/customers/$customerId': typeof AdminCustomersCustomerIdRouteWithChildren
+  '/_admin/customers/$customerId/machines/$machineId': typeof AdminCustomersCustomerIdMachinesMachineIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -137,6 +157,8 @@ export interface FileRouteTypes {
     | '/machines'
     | '/products'
     | '/users'
+    | '/customers/$customerId'
+    | '/customers/$customerId/machines/$machineId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/sign-in'
@@ -150,6 +172,8 @@ export interface FileRouteTypes {
     | '/products'
     | '/users'
     | '/'
+    | '/customers/$customerId'
+    | '/customers/$customerId/machines/$machineId'
   id:
     | '__root__'
     | '/_admin'
@@ -164,6 +188,8 @@ export interface FileRouteTypes {
     | '/_admin/products'
     | '/_admin/users'
     | '/_admin/'
+    | '/_admin/customers/$customerId'
+    | '/_admin/customers/$customerId/machines/$machineId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -257,14 +283,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminBusinessesRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/_admin/customers/$customerId': {
+      id: '/_admin/customers/$customerId'
+      path: '/$customerId'
+      fullPath: '/customers/$customerId'
+      preLoaderRoute: typeof AdminCustomersCustomerIdRouteImport
+      parentRoute: typeof AdminCustomersRoute
+    }
+    '/_admin/customers/$customerId/machines/$machineId': {
+      id: '/_admin/customers/$customerId/machines/$machineId'
+      path: '/machines/$machineId'
+      fullPath: '/customers/$customerId/machines/$machineId'
+      preLoaderRoute: typeof AdminCustomersCustomerIdMachinesMachineIdRouteImport
+      parentRoute: typeof AdminCustomersCustomerIdRoute
+    }
   }
 }
+
+interface AdminCustomersCustomerIdRouteChildren {
+  AdminCustomersCustomerIdMachinesMachineIdRoute: typeof AdminCustomersCustomerIdMachinesMachineIdRoute
+}
+
+const AdminCustomersCustomerIdRouteChildren: AdminCustomersCustomerIdRouteChildren =
+  {
+    AdminCustomersCustomerIdMachinesMachineIdRoute:
+      AdminCustomersCustomerIdMachinesMachineIdRoute,
+  }
+
+const AdminCustomersCustomerIdRouteWithChildren =
+  AdminCustomersCustomerIdRoute._addFileChildren(
+    AdminCustomersCustomerIdRouteChildren,
+  )
+
+interface AdminCustomersRouteChildren {
+  AdminCustomersCustomerIdRoute: typeof AdminCustomersCustomerIdRouteWithChildren
+}
+
+const AdminCustomersRouteChildren: AdminCustomersRouteChildren = {
+  AdminCustomersCustomerIdRoute: AdminCustomersCustomerIdRouteWithChildren,
+}
+
+const AdminCustomersRouteWithChildren = AdminCustomersRoute._addFileChildren(
+  AdminCustomersRouteChildren,
+)
 
 interface AdminRouteRouteChildren {
   AdminBusinessesRoute: typeof AdminBusinessesRoute
   AdminContractsRoute: typeof AdminContractsRoute
   AdminCreateCustomerRoute: typeof AdminCreateCustomerRoute
-  AdminCustomersRoute: typeof AdminCustomersRoute
+  AdminCustomersRoute: typeof AdminCustomersRouteWithChildren
   AdminDashboardRoute: typeof AdminDashboardRoute
   AdminDeploymentsRoute: typeof AdminDeploymentsRoute
   AdminMachinesRoute: typeof AdminMachinesRoute
@@ -277,7 +344,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminBusinessesRoute: AdminBusinessesRoute,
   AdminContractsRoute: AdminContractsRoute,
   AdminCreateCustomerRoute: AdminCreateCustomerRoute,
-  AdminCustomersRoute: AdminCustomersRoute,
+  AdminCustomersRoute: AdminCustomersRouteWithChildren,
   AdminDashboardRoute: AdminDashboardRoute,
   AdminDeploymentsRoute: AdminDeploymentsRoute,
   AdminMachinesRoute: AdminMachinesRoute,

@@ -21,11 +21,17 @@ import { env } from "@slushomat/env/web";
 import { cn } from "@slushomat/ui/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { trpc } from "@/utils/trpc";
 
 export const Route = createFileRoute("/_admin/contracts")({
+  validateSearch: (raw: Record<string, unknown>) => ({
+    organizationId:
+      typeof raw.organizationId === "string" ? raw.organizationId : undefined,
+    machineId:
+      typeof raw.machineId === "string" ? raw.machineId : undefined,
+  }),
   component: AdminContractsPage,
 });
 
@@ -75,6 +81,8 @@ type ContractRow = {
 };
 
 function AdminContractsPage() {
+  const search = Route.useSearch();
+  const prefilledRef = useRef(false);
   const queryClient = useQueryClient();
   const orgsQuery = useQuery(trpc.admin.listOrganizations.queryOptions());
   const machinesQuery = useQuery(trpc.admin.machine.list.queryOptions());
@@ -96,6 +104,16 @@ function AdminContractsPage() {
   });
 
   const [createOpen, setCreateOpen] = useState(false);
+
+  useEffect(() => {
+    if (prefilledRef.current) return;
+    if (!search.organizationId && !search.machineId) return;
+    prefilledRef.current = true;
+    if (search.organizationId) setCreateOrg(search.organizationId);
+    if (search.machineId) setCreateMachine(search.machineId);
+    setCEffective(toDateInput(new Date()));
+    setCreateOpen(true);
+  }, [search.organizationId, search.machineId]);
   const [createOrg, setCreateOrg] = useState("");
   const [createEntity, setCreateEntity] = useState("");
   const [createMachine, setCreateMachine] = useState("");
