@@ -17,12 +17,13 @@ import { Route as AdminProductsRouteImport } from './routes/_admin/products'
 import { Route as AdminMachinesRouteImport } from './routes/_admin/machines'
 import { Route as AdminDeploymentsRouteImport } from './routes/_admin/deployments'
 import { Route as AdminDashboardRouteImport } from './routes/_admin/dashboard'
-import { Route as AdminCustomersRouteImport } from './routes/_admin/customers'
 import { Route as AdminCreateCustomerRouteImport } from './routes/_admin/create-customer'
 import { Route as AdminContractsRouteImport } from './routes/_admin/contracts'
 import { Route as AdminBusinessesRouteImport } from './routes/_admin/businesses'
-import { Route as AdminCustomersCustomerIdRouteImport } from './routes/_admin/customers.$customerId'
-import { Route as AdminCustomersCustomerIdMachinesMachineIdRouteImport } from './routes/_admin/customers.$customerId.machines.$machineId'
+import { Route as AdminCustomersRouteRouteImport } from './routes/_admin/customers/route'
+import { Route as AdminCustomersIndexRouteImport } from './routes/_admin/customers/index'
+import { Route as AdminCustomersCustomerIdRouteImport } from './routes/_admin/customers/$customerId'
+import { Route as AdminCustomersCustomerIdMachinesMachineIdRouteImport } from './routes/_admin/customers/$customerId/machines/$machineId'
 
 const SignInRoute = SignInRouteImport.update({
   id: '/sign-in',
@@ -63,11 +64,6 @@ const AdminDashboardRoute = AdminDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AdminRouteRoute,
 } as any)
-const AdminCustomersRoute = AdminCustomersRouteImport.update({
-  id: '/customers',
-  path: '/customers',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
 const AdminCreateCustomerRoute = AdminCreateCustomerRouteImport.update({
   id: '/create-customer',
   path: '/create-customer',
@@ -83,11 +79,21 @@ const AdminBusinessesRoute = AdminBusinessesRouteImport.update({
   path: '/businesses',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminCustomersRouteRoute = AdminCustomersRouteRouteImport.update({
+  id: '/customers',
+  path: '/customers',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminCustomersIndexRoute = AdminCustomersIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminCustomersRouteRoute,
+} as any)
 const AdminCustomersCustomerIdRoute =
   AdminCustomersCustomerIdRouteImport.update({
     id: '/$customerId',
     path: '/$customerId',
-    getParentRoute: () => AdminCustomersRoute,
+    getParentRoute: () => AdminCustomersRouteRoute,
   } as any)
 const AdminCustomersCustomerIdMachinesMachineIdRoute =
   AdminCustomersCustomerIdMachinesMachineIdRouteImport.update({
@@ -99,16 +105,17 @@ const AdminCustomersCustomerIdMachinesMachineIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof AdminIndexRoute
   '/sign-in': typeof SignInRoute
+  '/customers': typeof AdminCustomersRouteRouteWithChildren
   '/businesses': typeof AdminBusinessesRoute
   '/contracts': typeof AdminContractsRoute
   '/create-customer': typeof AdminCreateCustomerRoute
-  '/customers': typeof AdminCustomersRouteWithChildren
   '/dashboard': typeof AdminDashboardRoute
   '/deployments': typeof AdminDeploymentsRoute
   '/machines': typeof AdminMachinesRoute
   '/products': typeof AdminProductsRoute
   '/users': typeof AdminUsersRoute
   '/customers/$customerId': typeof AdminCustomersCustomerIdRouteWithChildren
+  '/customers/': typeof AdminCustomersIndexRoute
   '/customers/$customerId/machines/$machineId': typeof AdminCustomersCustomerIdMachinesMachineIdRoute
 }
 export interface FileRoutesByTo {
@@ -116,7 +123,6 @@ export interface FileRoutesByTo {
   '/businesses': typeof AdminBusinessesRoute
   '/contracts': typeof AdminContractsRoute
   '/create-customer': typeof AdminCreateCustomerRoute
-  '/customers': typeof AdminCustomersRouteWithChildren
   '/dashboard': typeof AdminDashboardRoute
   '/deployments': typeof AdminDeploymentsRoute
   '/machines': typeof AdminMachinesRoute
@@ -124,16 +130,17 @@ export interface FileRoutesByTo {
   '/users': typeof AdminUsersRoute
   '/': typeof AdminIndexRoute
   '/customers/$customerId': typeof AdminCustomersCustomerIdRouteWithChildren
+  '/customers': typeof AdminCustomersIndexRoute
   '/customers/$customerId/machines/$machineId': typeof AdminCustomersCustomerIdMachinesMachineIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_admin': typeof AdminRouteRouteWithChildren
   '/sign-in': typeof SignInRoute
+  '/_admin/customers': typeof AdminCustomersRouteRouteWithChildren
   '/_admin/businesses': typeof AdminBusinessesRoute
   '/_admin/contracts': typeof AdminContractsRoute
   '/_admin/create-customer': typeof AdminCreateCustomerRoute
-  '/_admin/customers': typeof AdminCustomersRouteWithChildren
   '/_admin/dashboard': typeof AdminDashboardRoute
   '/_admin/deployments': typeof AdminDeploymentsRoute
   '/_admin/machines': typeof AdminMachinesRoute
@@ -141,6 +148,7 @@ export interface FileRoutesById {
   '/_admin/users': typeof AdminUsersRoute
   '/_admin/': typeof AdminIndexRoute
   '/_admin/customers/$customerId': typeof AdminCustomersCustomerIdRouteWithChildren
+  '/_admin/customers/': typeof AdminCustomersIndexRoute
   '/_admin/customers/$customerId/machines/$machineId': typeof AdminCustomersCustomerIdMachinesMachineIdRoute
 }
 export interface FileRouteTypes {
@@ -148,16 +156,17 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/sign-in'
+    | '/customers'
     | '/businesses'
     | '/contracts'
     | '/create-customer'
-    | '/customers'
     | '/dashboard'
     | '/deployments'
     | '/machines'
     | '/products'
     | '/users'
     | '/customers/$customerId'
+    | '/customers/'
     | '/customers/$customerId/machines/$machineId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -165,7 +174,6 @@ export interface FileRouteTypes {
     | '/businesses'
     | '/contracts'
     | '/create-customer'
-    | '/customers'
     | '/dashboard'
     | '/deployments'
     | '/machines'
@@ -173,15 +181,16 @@ export interface FileRouteTypes {
     | '/users'
     | '/'
     | '/customers/$customerId'
+    | '/customers'
     | '/customers/$customerId/machines/$machineId'
   id:
     | '__root__'
     | '/_admin'
     | '/sign-in'
+    | '/_admin/customers'
     | '/_admin/businesses'
     | '/_admin/contracts'
     | '/_admin/create-customer'
-    | '/_admin/customers'
     | '/_admin/dashboard'
     | '/_admin/deployments'
     | '/_admin/machines'
@@ -189,6 +198,7 @@ export interface FileRouteTypes {
     | '/_admin/users'
     | '/_admin/'
     | '/_admin/customers/$customerId'
+    | '/_admin/customers/'
     | '/_admin/customers/$customerId/machines/$machineId'
   fileRoutesById: FileRoutesById
 }
@@ -255,13 +265,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDashboardRouteImport
       parentRoute: typeof AdminRouteRoute
     }
-    '/_admin/customers': {
-      id: '/_admin/customers'
-      path: '/customers'
-      fullPath: '/customers'
-      preLoaderRoute: typeof AdminCustomersRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
     '/_admin/create-customer': {
       id: '/_admin/create-customer'
       path: '/create-customer'
@@ -283,12 +286,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminBusinessesRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/_admin/customers': {
+      id: '/_admin/customers'
+      path: '/customers'
+      fullPath: '/customers'
+      preLoaderRoute: typeof AdminCustomersRouteRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/_admin/customers/': {
+      id: '/_admin/customers/'
+      path: '/'
+      fullPath: '/customers/'
+      preLoaderRoute: typeof AdminCustomersIndexRouteImport
+      parentRoute: typeof AdminCustomersRouteRoute
+    }
     '/_admin/customers/$customerId': {
       id: '/_admin/customers/$customerId'
       path: '/$customerId'
       fullPath: '/customers/$customerId'
       preLoaderRoute: typeof AdminCustomersCustomerIdRouteImport
-      parentRoute: typeof AdminCustomersRoute
+      parentRoute: typeof AdminCustomersRouteRoute
     }
     '/_admin/customers/$customerId/machines/$machineId': {
       id: '/_admin/customers/$customerId/machines/$machineId'
@@ -315,23 +332,24 @@ const AdminCustomersCustomerIdRouteWithChildren =
     AdminCustomersCustomerIdRouteChildren,
   )
 
-interface AdminCustomersRouteChildren {
+interface AdminCustomersRouteRouteChildren {
   AdminCustomersCustomerIdRoute: typeof AdminCustomersCustomerIdRouteWithChildren
+  AdminCustomersIndexRoute: typeof AdminCustomersIndexRoute
 }
 
-const AdminCustomersRouteChildren: AdminCustomersRouteChildren = {
+const AdminCustomersRouteRouteChildren: AdminCustomersRouteRouteChildren = {
   AdminCustomersCustomerIdRoute: AdminCustomersCustomerIdRouteWithChildren,
+  AdminCustomersIndexRoute: AdminCustomersIndexRoute,
 }
 
-const AdminCustomersRouteWithChildren = AdminCustomersRoute._addFileChildren(
-  AdminCustomersRouteChildren,
-)
+const AdminCustomersRouteRouteWithChildren =
+  AdminCustomersRouteRoute._addFileChildren(AdminCustomersRouteRouteChildren)
 
 interface AdminRouteRouteChildren {
+  AdminCustomersRouteRoute: typeof AdminCustomersRouteRouteWithChildren
   AdminBusinessesRoute: typeof AdminBusinessesRoute
   AdminContractsRoute: typeof AdminContractsRoute
   AdminCreateCustomerRoute: typeof AdminCreateCustomerRoute
-  AdminCustomersRoute: typeof AdminCustomersRouteWithChildren
   AdminDashboardRoute: typeof AdminDashboardRoute
   AdminDeploymentsRoute: typeof AdminDeploymentsRoute
   AdminMachinesRoute: typeof AdminMachinesRoute
@@ -341,10 +359,10 @@ interface AdminRouteRouteChildren {
 }
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminCustomersRouteRoute: AdminCustomersRouteRouteWithChildren,
   AdminBusinessesRoute: AdminBusinessesRoute,
   AdminContractsRoute: AdminContractsRoute,
   AdminCreateCustomerRoute: AdminCreateCustomerRoute,
-  AdminCustomersRoute: AdminCustomersRouteWithChildren,
   AdminDashboardRoute: AdminDashboardRoute,
   AdminDeploymentsRoute: AdminDeploymentsRoute,
   AdminMachinesRoute: AdminMachinesRoute,

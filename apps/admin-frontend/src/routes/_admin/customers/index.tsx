@@ -20,8 +20,8 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { trpc } from "@/utils/trpc";
 
-export const Route = createFileRoute("/_admin/customers")({
-  component: CustomersPage,
+export const Route = createFileRoute("/_admin/customers/")({
+  component: CustomersIndexPage,
 });
 
 function formatRelativeCreated(d: Date): string {
@@ -38,7 +38,7 @@ function formatRelativeCreated(d: Date): string {
   return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(d);
 }
 
-function CustomersPage() {
+function CustomersIndexPage() {
   const navigate = useNavigate();
   const listQuery = useQuery(trpc.admin.customer.list.queryOptions({}));
   const [search, setSearch] = useState("");
