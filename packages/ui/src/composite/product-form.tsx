@@ -65,6 +65,8 @@ export interface ProductFormProps {
   onChange: (next: ProductFormValues) => void;
   onPickFile: (file: File) => void;
   onClearImage?: () => void;
+  /** Bump to remount the hidden file input (e.g. replace-image dialog cancelled after a pick). */
+  fileInputResetKey?: number;
   disabled?: boolean;
   isUploading?: boolean;
   /** Remote URL or object URL for the current image preview. */
@@ -80,6 +82,7 @@ export function ProductForm({
   onChange,
   onPickFile,
   onClearImage,
+  fileInputResetKey = 0,
   disabled = false,
   isUploading = false,
   imagePreviewUrl = null,
@@ -225,6 +228,7 @@ export function ProductForm({
             <span>Click or drop a JPEG or PNG (max 5&nbsp;MB)</span>
           )}
           <input
+            key={fileInputResetKey}
             id={imageInputId}
             ref={fileInputRef}
             type="file"

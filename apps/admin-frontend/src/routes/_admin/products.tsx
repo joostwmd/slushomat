@@ -6,8 +6,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@slushomat/ui/base/card";
-import { Input } from "@slushomat/ui/base/input";
-import { Label } from "@slushomat/ui/base/label";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@slushomat/ui/base/empty";
 import {
   Sheet,
   SheetContent,
@@ -16,9 +20,14 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@slushomat/ui/base/sheet";
+import {
+  PRODUCT_IMAGE_MAX_BYTES,
+  ProductForm,
+  type ProductFormValues,
+} from "@slushomat/ui/composite/product-form";
+import { ProductListRow } from "@slushomat/ui/composite/product-list-row";
 import { createSupabaseBrowserClient } from "@slushomat/supabase";
 import { env } from "@slushomat/env/web";
-import { cn } from "@slushomat/ui/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
@@ -33,13 +42,6 @@ import { trpc } from "@/utils/trpc";
 export const Route = createFileRoute("/_admin/products")({
   component: TemplateProductsPage,
 });
-
-const selectClassName = cn(
-  "h-8 w-full min-w-0 rounded-none border border-input bg-transparent px-2.5 py-1 text-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 md:text-xs dark:bg-input/30",
-);
-
-/** Keep in sync with `TEMPLATE_PRODUCT_IMAGE_MAX_BYTES` on the server. */
-const TEMPLATE_PRODUCT_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 
 const ALLOWED_PRODUCT_IMAGE_TYPES = new Set(["image/jpeg", "image/png"]);
 
@@ -59,23 +61,13 @@ function resolveProductImageMime(file: File): "image/jpeg" | "image/png" | null 
 }
 
 function validateProductImageFile(file: File): string | null {
-  if (file.size > TEMPLATE_PRODUCT_IMAGE_MAX_BYTES) {
-    return `File is too large (max ${TEMPLATE_PRODUCT_IMAGE_MAX_BYTES / 1024 / 1024} MB).`;
+  if (file.size > PRODUCT_IMAGE_MAX_BYTES) {
+    return `File is too large (max ${PRODUCT_IMAGE_MAX_BYTES / 1024 / 1024} MB).`;
   }
   if (!resolveProductImageMime(file)) {
     return "Only JPEG and PNG images are allowed.";
   }
   return null;
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) {
-    return `${bytes} B`;
-  }
-  if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  }
-  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 }
 
 function errMessage(e: unknown): string {
@@ -110,13 +102,17 @@ type ListRow = {
 function TemplateProductsPage() {
   const queryClient = useQueryClient();
   const listQuery = useQuery(trpc.admin.templateProduct.list.queryOptions());
-  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const replaceDialogHadFileRef = useRef(false);
+  const replaceApplyRef = useRef(false);
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [name, setName] = useState("");
-  const [priceEuros, setPriceEuros] = useState("");
-  const [taxRate, setTaxRate] = useState<7 | 19>(19);
+  const [formValues, setFormValues] = useState<ProductFormValues>({
+    name: "",
+    priceEuros: "",
+    taxRatePercent: 19,
+  });
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | null>(
     null,
@@ -124,6 +120,7 @@ function TemplateProductsPage() {
 
   const [stagedFile, setStagedFile] = useState<File | null>(null);
   const [replaceDialogOpen, setReplaceDialogOpen] = useState(false);
+  const [fileInputResetKey, setFileInputResetKey] = useState(0);
 
   const [deleteTarget, setDeleteTarget] = useState<ListRow | null>(null);
 
@@ -173,20 +170,29 @@ function TemplateProductsPage() {
     trpc.admin.templateProduct.confirmTemplateProductImage.mutationOptions(),
   );
 
+  const isUploading =
+    requestUploadMutation.isPending || confirmImageMutation.isPending;
+
+  const formBlocked =
+    createMutation.isPending ||
+    updateMutation.isPending ||
+    isUploading;
+
   const resetForm = () => {
     setEditId(null);
-    setName("");
-    setPriceEuros("");
-    setTaxRate(19);
+    setFormValues({
+      name: "",
+      priceEuros: "",
+      taxRatePercent: 19,
+    });
     setPendingFile(null);
-    if (pendingPreviewUrl) {
-      URL.revokeObjectURL(pendingPreviewUrl);
-      setPendingPreviewUrl(null);
-    }
+    setPendingPreviewUrl((prev) => {
+      if (prev) {
+        URL.revokeObjectURL(prev);
+      }
+      return null;
+    });
     setStagedFile(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
   };
 
   const openCreate = () => {
@@ -197,9 +203,11 @@ function TemplateProductsPage() {
   const openEdit = (row: ListRow) => {
     resetForm();
     setEditId(row.id);
-    setName(row.name);
-    setPriceEuros(centsToEurosLabel(row.priceInCents));
-    setTaxRate(row.taxRatePercent);
+    setFormValues({
+      name: row.name,
+      priceEuros: centsToEurosLabel(row.priceInCents),
+      taxRatePercent: row.taxRatePercent,
+    });
     setSheetOpen(true);
   };
 
@@ -209,29 +217,22 @@ function TemplateProductsPage() {
       toast.error(err);
       return;
     }
-    if (pendingPreviewUrl) {
-      URL.revokeObjectURL(pendingPreviewUrl);
-    }
+    setPendingPreviewUrl((prev) => {
+      if (prev) {
+        URL.revokeObjectURL(prev);
+      }
+      return URL.createObjectURL(file);
+    });
     setPendingFile(file);
-    setPendingPreviewUrl(URL.createObjectURL(file));
   };
 
-  const onFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) {
-      return;
-    }
+  const handlePickFile = (file: File) => {
     const row = listQuery.data?.find((r) => r.id === editId);
     if (editId && (row?.imageUrl || pendingFile)) {
-      const err = validateProductImageFile(file);
-      if (err) {
-        toast.error(err);
-        e.target.value = "";
-        return;
-      }
+      replaceApplyRef.current = false;
+      replaceDialogHadFileRef.current = true;
       setStagedFile(file);
       setReplaceDialogOpen(true);
-      e.target.value = "";
       return;
     }
     applySelectedFile(file);
@@ -276,12 +277,12 @@ function TemplateProductsPage() {
 
   const submitSheet = async (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmed = name.trim();
+    const trimmed = formValues.name.trim();
     if (!trimmed) {
       toast.error("Name is required.");
       return;
     }
-    const cents = eurosToCents(priceEuros);
+    const cents = eurosToCents(formValues.priceEuros);
     if (cents === null) {
       toast.error("Enter a valid price in euros.");
       return;
@@ -295,7 +296,7 @@ function TemplateProductsPage() {
           id: editId,
           name: trimmed,
           priceInCents: cents,
-          taxRatePercent: taxRate,
+          taxRatePercent: formValues.taxRatePercent,
         });
         if (fileToUpload) {
           try {
@@ -321,7 +322,7 @@ function TemplateProductsPage() {
       const created = await createMutation.mutateAsync({
         name: trimmed,
         priceInCents: cents,
-        taxRatePercent: taxRate,
+        taxRatePercent: formValues.taxRatePercent,
       });
 
       if (fileToUpload) {
@@ -350,25 +351,11 @@ function TemplateProductsPage() {
   const rows: ListRow[] = listQuery.data ?? [];
   const loading = listQuery.isPending;
 
-  const handleDrop = (ev: React.DragEvent) => {
-    ev.preventDefault();
-    const file = ev.dataTransfer.files?.[0];
-    if (!file) {
-      return;
-    }
-    const err = validateProductImageFile(file);
-    if (err) {
-      toast.error(err);
-      return;
-    }
-    const row = listQuery.data?.find((r) => r.id === editId);
-    if (editId && (row?.imageUrl || pendingFile)) {
-      setStagedFile(file);
-      setReplaceDialogOpen(true);
-      return;
-    }
-    applySelectedFile(file);
-  };
+  const editingRow = editId
+    ? listQuery.data?.find((r) => r.id === editId)
+    : undefined;
+  const imagePreviewUrl =
+    pendingPreviewUrl ?? editingRow?.imageUrl ?? null;
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-8">
@@ -396,70 +383,48 @@ function TemplateProductsPage() {
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading…</p>
           ) : rows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No template products yet. Add one to get started.
-            </p>
+            <Empty className="border-none bg-transparent py-8">
+              <EmptyHeader>
+                <EmptyTitle>No template products yet</EmptyTitle>
+                <EmptyDescription>
+                  Add one to get started — name, price, VAT, optional image.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           ) : (
-            <div className="overflow-x-auto border border-border">
-              <table className="w-full text-left text-xs">
-                <thead className="border-b border-border bg-muted/40">
-                  <tr>
-                    <th className="px-3 py-2 font-medium">Image</th>
-                    <th className="px-3 py-2 font-medium">Name</th>
-                    <th className="px-3 py-2 font-medium">Price</th>
-                    <th className="px-3 py-2 font-medium">Tax</th>
-                    <th className="px-3 py-2 font-medium text-right">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <tr
-                      key={row.id}
-                      className="border-b border-border last:border-0"
-                    >
-                      <td className="px-3 py-2">
-                        {row.imageUrl ? (
-                          <img
-                            src={row.imageUrl}
-                            alt=""
-                            className="size-10 border border-border object-cover"
-                          />
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 font-medium">{row.name}</td>
-                      <td className="px-3 py-2 tabular-nums">
-                        €{centsToEurosLabel(row.priceInCents)}
-                      </td>
-                      <td className="px-3 py-2">{row.taxRatePercent}%</td>
-                      <td className="px-3 py-2 text-right">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-7"
-                          onClick={() => openEdit(row)}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-destructive hover:text-destructive"
-                          onClick={() => setDeleteTarget(row)}
-                          disabled={deleteMutation.isPending}
-                        >
-                          Delete
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="overflow-x-auto border border-border px-3">
+              {rows.map((row) => (
+                <ProductListRow
+                  key={row.id}
+                  name={row.name}
+                  priceLabel={`€${centsToEurosLabel(row.priceInCents)}`}
+                  taxRatePercent={row.taxRatePercent}
+                  thumbnailUrl={row.imageUrl}
+                  actions={
+                    <>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7"
+                        onClick={() => openEdit(row)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-destructive hover:text-destructive"
+                        onClick={() => setDeleteTarget(row)}
+                        disabled={deleteMutation.isPending}
+                      >
+                        Delete
+                      </Button>
+                    </>
+                  }
+                />
+              ))}
             </div>
           )}
         </CardContent>
@@ -488,121 +453,30 @@ function TemplateProductsPage() {
             className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4"
             onSubmit={submitSheet}
           >
-            <div className="space-y-1.5">
-              <Label htmlFor="tp-name">Name</Label>
-              <Input
-                id="tp-name"
-                value={name}
-                onChange={(ev) => setName(ev.target.value)}
-                autoComplete="off"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="tp-price">Price (€)</Label>
-              <Input
-                id="tp-price"
-                type="text"
-                inputMode="decimal"
-                placeholder="2.50"
-                value={priceEuros}
-                onChange={(ev) => setPriceEuros(ev.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="tp-tax">Tax rate</Label>
-              <select
-                id="tp-tax"
-                className={selectClassName}
-                value={taxRate}
-                onChange={(ev) =>
-                  setTaxRate(Number(ev.target.value) as 7 | 19)
-                }
-              >
-                <option value={7}>7% (reduced)</option>
-                <option value={19}>19% (standard)</option>
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex flex-col gap-0.5">
-                <Label htmlFor="tp-image-input">Image</Label>
-                <p
-                  id="tp-image-hint"
-                  className="text-[11px] text-muted-foreground"
-                >
-                  JPEG or PNG only · max 5&nbsp;MB
-                </p>
-              </div>
-              <div
-                role="button"
-                tabIndex={0}
-                className={cn(
-                  "flex min-h-[100px] cursor-pointer flex-col items-center justify-center gap-2 border border-dashed border-input bg-muted/20 px-3 py-4 text-center text-xs text-muted-foreground transition-colors hover:bg-muted/30",
-                )}
-                onKeyDown={(ev) => {
-                  if (ev.key === "Enter" || ev.key === " ") {
-                    ev.preventDefault();
-                    fileInputRef.current?.click();
-                  }
-                }}
-                onClick={() => fileInputRef.current?.click()}
-                onDragOver={(ev) => ev.preventDefault()}
-                onDrop={handleDrop}
-              >
-                {pendingPreviewUrl ? (
-                  <img
-                    src={pendingPreviewUrl}
-                    alt=""
-                    className="max-h-24 border border-border object-contain"
-                  />
-                ) : editId &&
-                  listQuery.data?.find((r) => r.id === editId)?.imageUrl ? (
-                  <img
-                    src={
-                      listQuery.data.find((r) => r.id === editId)!.imageUrl!
-                    }
-                    alt=""
-                    className="max-h-24 border border-border object-contain"
-                  />
-                ) : (
-                  <span>Click or drop a JPEG or PNG (max 5&nbsp;MB)</span>
-                )}
-                <input
-                  id="tp-image-input"
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,.jpg,.jpeg,.png"
-                  className="hidden"
-                  aria-describedby="tp-image-hint"
-                  onChange={onFileInputChange}
-                />
-              </div>
-              {pendingFile ? (
-                <div className="flex flex-col gap-1">
-                  <p className="text-[11px] text-muted-foreground">
-                    {pendingFile.name} · {formatFileSize(pendingFile.size)} · limit
-                    5&nbsp;MB
-                  </p>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 self-start px-0 text-xs"
-                    onClick={() => {
+            <ProductForm
+              idPrefix="tp"
+              fileInputResetKey={fileInputResetKey}
+              value={formValues}
+              onChange={setFormValues}
+              onPickFile={handlePickFile}
+              onClearImage={
+                pendingFile
+                  ? () => {
                       setPendingFile(null);
-                      if (pendingPreviewUrl) {
-                        URL.revokeObjectURL(pendingPreviewUrl);
-                        setPendingPreviewUrl(null);
-                      }
-                      if (fileInputRef.current) {
-                        fileInputRef.current.value = "";
-                      }
-                    }}
-                  >
-                    Clear selected file
-                  </Button>
-                </div>
-              ) : null}
-            </div>
+                      setPendingPreviewUrl((prev) => {
+                        if (prev) {
+                          URL.revokeObjectURL(prev);
+                        }
+                        return null;
+                      });
+                    }
+                  : undefined
+              }
+              disabled={formBlocked}
+              isUploading={isUploading}
+              imagePreviewUrl={imagePreviewUrl}
+              selectedFile={pendingFile}
+            />
             <SheetFooter className="mt-auto flex-row gap-2 border-t border-border pt-4">
               <Button
                 type="button"
@@ -612,16 +486,7 @@ function TemplateProductsPage() {
               >
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                size="sm"
-                disabled={
-                  createMutation.isPending ||
-                  updateMutation.isPending ||
-                  requestUploadMutation.isPending ||
-                  confirmImageMutation.isPending
-                }
-              >
+              <Button type="submit" size="sm" disabled={formBlocked}>
                 Save
               </Button>
             </SheetFooter>
@@ -654,13 +519,19 @@ function TemplateProductsPage() {
       <ReplaceTemplateProductImageDialog
         open={replaceDialogOpen}
         onOpenChange={(o) => {
-          setReplaceDialogOpen(o);
           if (!o) {
+            if (replaceDialogHadFileRef.current && !replaceApplyRef.current) {
+              setFileInputResetKey((k) => k + 1);
+            }
+            replaceDialogHadFileRef.current = false;
+            replaceApplyRef.current = false;
             setStagedFile(null);
           }
+          setReplaceDialogOpen(o);
         }}
         pending={false}
         onConfirm={() => {
+          replaceApplyRef.current = true;
           if (stagedFile) {
             applySelectedFile(stagedFile);
             setStagedFile(null);
@@ -699,9 +570,7 @@ function TemplateProductsPage() {
             resetForm();
           } catch (err) {
             setUploadFailure((prev) =>
-              prev
-                ? { ...prev, message: errMessage(err) }
-                : prev,
+              prev ? { ...prev, message: errMessage(err) } : prev,
             );
           }
         }}
