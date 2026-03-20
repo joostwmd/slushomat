@@ -3,3 +3,6 @@ export * from "./machines";
 export * from "./product-image";
 export * from "./template-products";
 export * from "./operator-product";
+export * from "./business-entity";
+export * from "./operator-contract";
+export * from "./machine-lifecycle";
