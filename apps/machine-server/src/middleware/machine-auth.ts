@@ -1,24 +1,94 @@
 import { createMiddleware } from "hono/factory";
+import { eq } from "drizzle-orm";
+import { auth } from "@slushomat/auth";
+import { db } from "@slushomat/db";
+import { machine } from "@slushomat/db/schema";
 
-/**
- * Machine authentication middleware.
- * Validates machineId + machineKey against the database and rejects unauthorized combinations.
- *
- * TODO: Implement when machine credentials are set up in the database.
- * - Extract machineId and machineKey from headers (e.g. X-Machine-Id, X-Machine-Key)
- * - Query database to verify the combination
- * - Reject with 401 and MACHINE_ERROR_CODES.INVALID_MACHINE_CREDENTIALS if invalid
- * - Reject with 403 and MACHINE_ERROR_CODES.MACHINE_DISABLED if machine is disabled
- *
- * For now: allow every request (development mode, no credentials in DB yet).
- */
-export const machineAuthMiddleware = createMiddleware(async (_c, next) => {
-  // TODO: Implement auth check
-  // const machineId = c.req.header("X-Machine-Id");
-  // const machineKey = c.req.header("X-Machine-Key");
-  // if (!machineId || !machineKey) return c.json({ error: "Missing credentials" }, 401);
-  // const machine = await db.query.machine.findFirst({ where: eq(machine.id, machineId) });
-  // if (!machine || machine.keyHash !== hash(machineKey)) return c.json({ error: "Invalid credentials" }, 401);
-  // if (machine.disabled) return c.json({ error: "Machine disabled" }, 403);
+import { MACHINE_ERROR_CODES } from "../errors";
+
+function headerSecret(header: string | undefined): string | null {
+  const raw = header?.trim();
+  return raw || null;
+}
+
+function machineIdFromKeyMetadata(metadata: unknown): string | null {
+  if (metadata && typeof metadata === "object" && "machineId" in metadata) {
+    const v = (metadata as { machineId?: unknown }).machineId;
+    return typeof v === "string" ? v : null;
+  }
+  return null;
+}
+
+type VerifyApiKeyResponse = {
+  valid?: boolean;
+  key?: {
+    id: string;
+    metadata?: unknown;
+  } | null;
+};
+
+export const machineAuthMiddleware = createMiddleware(async (c, next) => {
+  const secret = headerSecret(c.req.header("x-machine-key"));
+  const machineIdHeader = c.req.header("x-machine-id")?.trim();
+
+  if (!secret || !machineIdHeader) {
+    return c.json(
+      { code: MACHINE_ERROR_CODES.INVALID_MACHINE_CREDENTIALS },
+      401,
+    );
+  }
+
+  let verified: VerifyApiKeyResponse;
+  try {
+    verified = (await auth.api.verifyApiKey({
+      body: { key: secret },
+    })) as VerifyApiKeyResponse;
+  } catch {
+    return c.json(
+      { code: MACHINE_ERROR_CODES.INVALID_MACHINE_CREDENTIALS },
+      401,
+    );
+  }
+
+  if (!verified?.valid || !verified.key) {
+    return c.json(
+      { code: MACHINE_ERROR_CODES.INVALID_MACHINE_CREDENTIALS },
+      401,
+    );
+  }
+
+  const metaMid = machineIdFromKeyMetadata(verified.key.metadata);
+  if (!metaMid || metaMid !== machineIdHeader) {
+    return c.json(
+      { code: MACHINE_ERROR_CODES.INVALID_MACHINE_CREDENTIALS },
+      401,
+    );
+  }
+
+  const [row] = await db
+    .select()
+    .from(machine)
+    .where(eq(machine.id, machineIdHeader))
+    .limit(1);
+
+  if (!row) {
+    return c.json(
+      { code: MACHINE_ERROR_CODES.INVALID_MACHINE_CREDENTIALS },
+      401,
+    );
+  }
+
+  if (row.disabled) {
+    return c.json({ code: MACHINE_ERROR_CODES.MACHINE_DISABLED }, 403);
+  }
+
+  if (!row.apiKeyId || row.apiKeyId !== verified.key.id) {
+    return c.json(
+      { code: MACHINE_ERROR_CODES.INVALID_MACHINE_CREDENTIALS },
+      401,
+    );
+  }
+
+  c.set("machineId", row.id);
   await next();
 });

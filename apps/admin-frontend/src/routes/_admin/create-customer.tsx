@@ -73,12 +73,16 @@ export function CreateCustomerWizard({ initialStep = 1 }: CreateCustomerWizardPr
     }
 
     try {
-      const res = await authClient.admin.createUser({
+      const res = (await authClient.admin.createUser({
         email: trimmedEmail,
         password,
         name: trimmedName,
         role: "user",
-      }) as { data?: { user?: { id: string } }; user?: { id: string }; error?: { message?: string } };
+      })) as unknown as {
+        data?: { user?: { id: string } };
+        user?: { id: string };
+        error?: { message?: string };
+      };
 
       // API returns { user: { id, ... } }; client may wrap as data or pass through
       const newUser = res?.data?.user ?? res?.user;

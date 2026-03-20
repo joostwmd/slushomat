@@ -1,6 +1,7 @@
 import { db, getInitialOrganization } from "@slushomat/db";
 import * as schema from "@slushomat/db/schema";
 import { env } from "@slushomat/env/server";
+import { apiKey } from "@better-auth/api-key";
 import { APIError, betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin } from "better-auth/plugins";
@@ -113,6 +114,22 @@ export const auth = betterAuth({
       allowUserToCreateOrganization: async (user) => {
         return user.role === "admin";
       },
+    }),
+    // Single options object (not an array) = one implicit "default" API key profile — same idea as `apiKey()` in the docs, with SLUSH_ + metadata for devices.
+    apiKey({
+      references: "user",
+      enableMetadata: true,
+      defaultPrefix: "SLUSH_",
+      // Default max name length is 32; we use `machine:<uuid>` (~43 chars) for device keys.
+      maximumNameLength: 80,
+      // Throttling off for device keys (not related to key expiry).
+      rateLimit: { enabled: false, timeWindow: 86_400_000, maxRequests: 1_000_000 },
+      // No time-based expiry: expiresAt stays null unless you revoke/delete the key.
+      keyExpiration: {
+        defaultExpiresIn: null,
+        disableCustomExpiresTime: true,
+      },
+      startingCharactersConfig: { shouldStore: true, charactersLength: 10 },
     }),
   ],
 });

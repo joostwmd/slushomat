@@ -15,15 +15,24 @@ const app = new Hono();
 app.use("*", secureHeaders());
 
 // 2. CORS - allow machine origins (for dev, use broad origin)
-app.use("*", createCors({ origin: process.env.CORS_ORIGIN ?? "*" }));
+app.use(
+  "*",
+  createCors({
+    origin: process.env.CORS_ORIGIN ?? "*",
+    allowHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Machine-Id",
+      "X-Machine-Key",
+    ],
+  }),
+);
 
-// 3. Machine auth (stub: allows all for now)
-app.use("*", machineAuthMiddleware);
-
-// 4. Health check
+// 3. Health check (no machine auth)
 app.get("/healthz", (c) => c.json(healthzResponse()));
 
-// 5. Placeholder: is-killed endpoint (returns false for now)
+// 4. Protected machine routes
+app.use("/is-killed", machineAuthMiddleware);
 app.get("/is-killed", (c) => c.json({ killed: false }));
 
 // 6. Error handler

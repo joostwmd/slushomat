@@ -1,4 +1,5 @@
 import { Button } from "@slushomat/ui/base/button";
+import { Checkbox } from "@slushomat/ui/base/checkbox";
 import {
   Card,
   CardContent,
@@ -16,7 +17,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@slushomat/ui/base/sheet";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { cn } from "@slushomat/ui/lib/utils";
 import { useState } from "react";
@@ -44,7 +45,18 @@ type VersionRow = {
   updatedAt: Date;
 };
 
+type MachineListRow = {
+  id: string;
+  machineVersionId: string;
+  versionNumber: string;
+  comments: string;
+  disabled: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 function MachinesPage() {
+  const queryClient = useQueryClient();
   const versionsQuery = useQuery(trpc.admin.machineVersion.list.queryOptions());
   const machinesQuery = useQuery(trpc.admin.machine.list.queryOptions());
 
@@ -57,6 +69,15 @@ function MachinesPage() {
   const [machineEditId, setMachineEditId] = useState<string | null>(null);
   const [machineVersionId, setMachineVersionId] = useState("");
   const [machineComments, setMachineComments] = useState("");
+  const [machineDisabled, setMachineDisabled] = useState(false);
+  const [apiKeySecret, setApiKeySecret] = useState<string | null>(null);
+
+  const apiKeyMetaQuery = useQuery(
+    trpc.admin.machine.apiKey.getMetadata.queryOptions(
+      { machineId: machineEditId ?? "" },
+      { enabled: machineSheetOpen && !!machineEditId },
+    ),
+  );
 
   const openCreateVersion = () => {
     setVersionEdit(null);
@@ -76,19 +97,55 @@ function MachinesPage() {
     setMachineEditId(null);
     setMachineVersionId(versionsQuery.data?.[0]?.id ?? "");
     setMachineComments("");
+    setMachineDisabled(false);
+    setApiKeySecret(null);
     setMachineSheetOpen(true);
   };
 
-  const openEditMachine = (m: {
-    id: string;
-    machineVersionId: string;
-    comments: string;
-  }) => {
+  const openEditMachine = (m: MachineListRow) => {
     setMachineEditId(m.id);
     setMachineVersionId(m.machineVersionId);
     setMachineComments(m.comments);
+    setMachineDisabled(m.disabled);
+    setApiKeySecret(null);
     setMachineSheetOpen(true);
   };
+
+  const invalidateApiKeyMeta = () => {
+    if (!machineEditId) return;
+    void queryClient.invalidateQueries(
+      trpc.admin.machine.apiKey.getMetadata.queryFilter({
+        machineId: machineEditId,
+      }),
+    );
+  };
+
+  const createApiKeyMutation = useMutation({
+    ...trpc.admin.machine.apiKey.create.mutationOptions(),
+    onSuccess: () => {
+      invalidateApiKeyMeta();
+      void machinesQuery.refetch();
+    },
+    onError: (e) => toast.error(errMessage(e)),
+  });
+
+  const rotateApiKeyMutation = useMutation({
+    ...trpc.admin.machine.apiKey.rotate.mutationOptions(),
+    onSuccess: () => {
+      invalidateApiKeyMeta();
+      void machinesQuery.refetch();
+    },
+    onError: (e) => toast.error(errMessage(e)),
+  });
+
+  const revokeApiKeyMutation = useMutation({
+    ...trpc.admin.machine.apiKey.revoke.mutationOptions(),
+    onSuccess: () => {
+      invalidateApiKeyMeta();
+      void machinesQuery.refetch();
+    },
+    onError: (e) => toast.error(errMessage(e)),
+  });
 
   const createVersionMutation = useMutation({
     ...trpc.admin.machineVersion.create.mutationOptions(),
@@ -122,10 +179,14 @@ function MachinesPage() {
 
   const createMachineMutation = useMutation({
     ...trpc.admin.machine.create.mutationOptions(),
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success("Machine created");
       void machinesQuery.refetch();
-      setMachineSheetOpen(false);
+      setMachineEditId(data.id);
+      setMachineVersionId(data.machineVersionId);
+      setMachineComments(data.comments);
+      setMachineDisabled(data.disabled);
+      setApiKeySecret(null);
     },
     onError: (e) => toast.error(errMessage(e)),
   });
@@ -178,17 +239,19 @@ function MachinesPage() {
         id: machineEditId,
         machineVersionId,
         comments: machineComments,
+        disabled: machineDisabled,
       });
     } else {
       createMachineMutation.mutate({
         machineVersionId,
         comments: machineComments,
+        disabled: machineDisabled,
       });
     }
   };
 
   const versions = versionsQuery.data ?? [];
-  const machines = machinesQuery.data ?? [];
+  const machines: MachineListRow[] = machinesQuery.data ?? [];
   const versionsLoading = versionsQuery.isPending;
   const machinesLoading = machinesQuery.isPending;
 
@@ -318,6 +381,7 @@ function MachinesPage() {
                       <th className="px-3 py-2 font-medium">Id</th>
                       <th className="px-3 py-2 font-medium">Version</th>
                       <th className="px-3 py-2 font-medium">Comments</th>
+                      <th className="px-3 py-2 font-medium">Status</th>
                       <th className="px-3 py-2 font-medium text-right">
                         Actions
                       </th>
@@ -345,6 +409,13 @@ function MachinesPage() {
                           title={m.comments}
                         >
                           {m.comments || "—"}
+                        </td>
+                        <td className="px-3 py-2 text-muted-foreground">
+                          {m.disabled ? (
+                            <span className="text-destructive">Disabled</span>
+                          ) : (
+                            "Active"
+                          )}
                         </td>
                         <td className="px-3 py-2 text-right">
                           <Button
@@ -378,43 +449,51 @@ function MachinesPage() {
       </div>
 
       <Sheet open={versionSheetOpen} onOpenChange={setVersionSheetOpen}>
-        <SheetContent side="right" className="sm:max-w-md">
-          <form onSubmit={submitVersion}>
-            <SheetHeader>
-              <SheetTitle>
-                {versionEdit ? "Edit machine version" : "New machine version"}
-              </SheetTitle>
-              <SheetDescription>
-                {versionEdit
-                  ? "Update the description. Version number cannot be changed."
-                  : "Version numbers must be unique across the catalog."}
-              </SheetDescription>
-            </SheetHeader>
-            <div className="flex flex-col gap-4 px-4">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="mv-number">Version number</Label>
-                <Input
-                  id="mv-number"
-                  value={versionNumber}
-                  onChange={(e) => setVersionNumber(e.target.value)}
-                  disabled={!!versionEdit}
-                  placeholder="e.g. 2.1.0"
-                  required={!versionEdit}
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="mv-desc">Description</Label>
-                <textarea
-                  id="mv-desc"
-                  className={textareaClassName}
-                  value={versionDescription}
-                  onChange={(e) => setVersionDescription(e.target.value)}
-                  placeholder="What ships in this version"
-                  required
-                />
+        <SheetContent
+          side="right"
+          className="max-h-dvh overflow-hidden sm:max-w-md"
+        >
+          <form
+            className="flex h-full min-h-0 flex-col overflow-hidden"
+            onSubmit={submitVersion}
+          >
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
+              <SheetHeader>
+                <SheetTitle>
+                  {versionEdit ? "Edit machine version" : "New machine version"}
+                </SheetTitle>
+                <SheetDescription>
+                  {versionEdit
+                    ? "Update the description. Version number cannot be changed."
+                    : "Version numbers must be unique across the catalog."}
+                </SheetDescription>
+              </SheetHeader>
+              <div className="flex flex-col gap-4 px-4 pb-4">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="mv-number">Version number</Label>
+                  <Input
+                    id="mv-number"
+                    value={versionNumber}
+                    onChange={(e) => setVersionNumber(e.target.value)}
+                    disabled={!!versionEdit}
+                    placeholder="e.g. 2.1.0"
+                    required={!versionEdit}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="mv-desc">Description</Label>
+                  <textarea
+                    id="mv-desc"
+                    className={textareaClassName}
+                    value={versionDescription}
+                    onChange={(e) => setVersionDescription(e.target.value)}
+                    placeholder="What ships in this version"
+                    required
+                  />
+                </div>
               </div>
             </div>
-            <SheetFooter className="mt-6">
+            <SheetFooter className="mt-0 shrink-0 border-t border-border bg-background">
               <Button
                 type="button"
                 variant="outline"
@@ -437,17 +516,24 @@ function MachinesPage() {
       </Sheet>
 
       <Sheet open={machineSheetOpen} onOpenChange={setMachineSheetOpen}>
-        <SheetContent side="right" className="sm:max-w-md">
-          <form onSubmit={submitMachine}>
-            <SheetHeader>
-              <SheetTitle>
-                {machineEditId ? "Edit machine" : "New machine"}
-              </SheetTitle>
-              <SheetDescription>
-                Assign a catalog version and optional comments.
-              </SheetDescription>
-            </SheetHeader>
-            <div className="flex flex-col gap-4 px-4">
+        <SheetContent
+          side="right"
+          className="max-h-dvh overflow-hidden sm:max-w-md"
+        >
+          <form
+            className="flex h-full min-h-0 flex-col overflow-hidden"
+            onSubmit={submitMachine}
+          >
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
+              <SheetHeader>
+                <SheetTitle>
+                  {machineEditId ? "Edit machine" : "New machine"}
+                </SheetTitle>
+                <SheetDescription>
+                  Assign a catalog version and optional comments.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="flex flex-col gap-4 px-4 pb-4">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="m-version">Machine version</Label>
                 <select
@@ -476,8 +562,162 @@ function MachinesPage() {
                   placeholder="Notes for operators or admins"
                 />
               </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="m-disabled"
+                  checked={machineDisabled}
+                  onCheckedChange={(v) => setMachineDisabled(v === true)}
+                />
+                <Label htmlFor="m-disabled" className="font-normal">
+                  Machine disabled (device cannot authenticate)
+                </Label>
+              </div>
+
+              {machineEditId ? (
+                <div className="border-t border-border pt-4">
+                  <h3 className="mb-2 text-sm font-medium">Device API key</h3>
+                  <p className="mb-2 text-xs text-muted-foreground">
+                    Send{" "}
+                    <span className="font-mono text-foreground">
+                      X-Machine-Key: &lt;key&gt;
+                    </span>{" "}
+                    and{" "}
+                    <span className="font-mono text-foreground">
+                      X-Machine-Id: {machineEditId}
+                    </span>
+                    .
+                  </p>
+                  {apiKeySecret ? (
+                    <div
+                      className="mb-3 rounded-none border border-amber-500/40 bg-amber-500/5 p-3"
+                      role="region"
+                      aria-label="New API key — copy now"
+                    >
+                      <p className="mb-2 text-xs font-medium text-amber-950 dark:text-amber-100">
+                        Copy this key now. You won&apos;t see the full secret again
+                        after you close this panel.
+                      </p>
+                      <Label
+                        htmlFor="machine-api-key-once"
+                        className="text-xs text-muted-foreground"
+                      >
+                        API key
+                      </Label>
+                      <textarea
+                        id="machine-api-key-once"
+                        readOnly
+                        className={cn(textareaClassName, "mt-1 font-mono")}
+                        value={apiKeySecret}
+                        rows={4}
+                      />
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={async () => {
+                            await navigator.clipboard.writeText(apiKeySecret);
+                            toast.success("API key copied");
+                          }}
+                        >
+                          Copy key
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => setApiKeySecret(null)}
+                        >
+                          Done
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+                  {apiKeyMetaQuery.isPending ? (
+                    <p className="text-xs text-muted-foreground">Loading key…</p>
+                  ) : !apiKeyMetaQuery.data ? (
+                    <div className="flex flex-col gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={createApiKeyMutation.isPending}
+                        onClick={() =>
+                          createApiKeyMutation.mutate(
+                            { machineId: machineEditId },
+                            {
+                              onSuccess: (d) => setApiKeySecret(d.key),
+                            },
+                          )
+                        }
+                      >
+                        Generate API key
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2 text-xs">
+                      <p className="font-mono text-[11px]">
+                        {(apiKeyMetaQuery.data.prefix ?? "SLUSH_") +
+                          (apiKeyMetaQuery.data.start
+                            ? `${apiKeyMetaQuery.data.start}***`
+                            : "****")}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {apiKeyMetaQuery.data.enabled ? "Enabled" : "Disabled"} ·
+                        updated {apiKeyMetaQuery.data.updatedAt.toLocaleString()}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          disabled={rotateApiKeyMutation.isPending}
+                          onClick={() => {
+                            if (
+                              !confirm(
+                                "Rotate this key? The old secret stops working immediately.",
+                              )
+                            ) {
+                              return;
+                            }
+                            rotateApiKeyMutation.mutate(
+                              { machineId: machineEditId },
+                              {
+                                onSuccess: (d) => setApiKeySecret(d.key),
+                              },
+                            );
+                          }}
+                        >
+                          Rotate key
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="destructive"
+                          disabled={revokeApiKeyMutation.isPending}
+                          onClick={() => {
+                            if (
+                              !confirm(
+                                "Revoke this key? Devices using it will stop authenticating.",
+                              )
+                            ) {
+                              return;
+                            }
+                            revokeApiKeyMutation.mutate({ machineId: machineEditId });
+                          }}
+                        >
+                          Revoke
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Save the machine to generate a device API key.
+                </p>
+              )}
+              </div>
             </div>
-            <SheetFooter className="mt-6">
+            <SheetFooter className="mt-0 shrink-0 border-t border-border bg-background">
               <Button
                 type="button"
                 variant="outline"

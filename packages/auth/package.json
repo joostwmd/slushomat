@@ -11,6 +11,7 @@
   },
   "scripts": {},
   "dependencies": {
+    "@better-auth/api-key": "1.5.2",
     "@slushomat/db": "workspace:*",
     "@slushomat/env": "workspace:*",
     "better-auth": "catalog:",

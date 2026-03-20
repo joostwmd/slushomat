@@ -6,11 +6,14 @@
     "build": "tsdown",
     "check-types": "tsc --noEmit",
     "dev": "portless machine.slushomat tsx watch src/index.ts",
-    "dev:local": "tsx watch src/index.ts"
+    "dev:local": "tsx watch src/index.ts",
+    "test:endpoints": "bash scripts/test-endpoints.sh"
   },
   "dependencies": {
     "@hono/node-server": "^1.14.4",
     "@slushomat/api": "workspace:*",
+    "@slushomat/auth": "workspace:*",
+    "@slushomat/db": "workspace:*",
     "dotenv": "catalog:",
     "hono": "catalog:"
   },

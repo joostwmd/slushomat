@@ -3,9 +3,10 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { UniqueViolationError } from "@slushomat/db";
 import { dbSafe } from "@slushomat/db/safety-net";
-import { machine, machineVersion } from "@slushomat/db/schema";
+import { apikey, machine, machineVersion } from "@slushomat/db/schema";
 import { router } from "../init";
 import { adminProcedure } from "../procedures";
+import { machineApiKeyAdminRouter } from "./admin-machine-api-key";
 
 const versionRow = z.object({
   id: z.string(),
@@ -20,6 +21,7 @@ const machineRow = z.object({
   machineVersionId: z.string(),
   versionNumber: z.string(),
   comments: z.string(),
+  disabled: z.boolean(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
@@ -150,6 +152,7 @@ export const machineAdminRouter = router({
         machineVersionId: machine.machineVersionId,
         versionNumber: machineVersion.versionNumber,
         comments: machine.comments,
+        disabled: machine.disabled,
         createdAt: machine.createdAt,
         updatedAt: machine.updatedAt,
       })
@@ -166,6 +169,7 @@ export const machineAdminRouter = router({
       z.object({
         machineVersionId: z.string().min(1, "Version is required"),
         comments: z.string(),
+        disabled: z.boolean().optional(),
       }),
     )
     .output(machineRow)
@@ -179,6 +183,7 @@ export const machineAdminRouter = router({
             id,
             machineVersionId: input.machineVersionId,
             comments,
+            disabled: input.disabled ?? false,
           })
           .returning({ id: machine.id }),
       );
@@ -194,6 +199,7 @@ export const machineAdminRouter = router({
           machineVersionId: machine.machineVersionId,
           versionNumber: machineVersion.versionNumber,
           comments: machine.comments,
+          disabled: machine.disabled,
           createdAt: machine.createdAt,
           updatedAt: machine.updatedAt,
         })
@@ -219,18 +225,27 @@ export const machineAdminRouter = router({
         id: z.string().min(1),
         machineVersionId: z.string().min(1, "Version is required"),
         comments: z.string(),
+        disabled: z.boolean().optional(),
       }),
     )
     .output(machineRow)
     .mutation(async ({ ctx, input }) => {
       const comments = input.comments.trim();
+      const patch: {
+        machineVersionId: string;
+        comments: string;
+        disabled?: boolean;
+      } = {
+        machineVersionId: input.machineVersionId,
+        comments,
+      };
+      if (input.disabled !== undefined) {
+        patch.disabled = input.disabled;
+      }
       const [updated] = await dbSafe(() =>
         ctx.db
           .update(machine)
-          .set({
-            machineVersionId: input.machineVersionId,
-            comments,
-          })
+          .set(patch)
           .where(eq(machine.id, input.id))
           .returning({ id: machine.id }),
       );
@@ -246,6 +261,7 @@ export const machineAdminRouter = router({
           machineVersionId: machine.machineVersionId,
           versionNumber: machineVersion.versionNumber,
           comments: machine.comments,
+          disabled: machine.disabled,
           createdAt: machine.createdAt,
           updatedAt: machine.updatedAt,
         })
@@ -269,16 +285,23 @@ export const machineAdminRouter = router({
     .input(z.object({ id: z.string().min(1) }))
     .output(z.object({ ok: z.literal(true) }))
     .mutation(async ({ ctx, input }) => {
-      const deleted = await ctx.db
-        .delete(machine)
+      const [existing] = await ctx.db
+        .select({ apiKeyId: machine.apiKeyId })
+        .from(machine)
         .where(eq(machine.id, input.id))
-        .returning({ id: machine.id });
-      if (deleted.length === 0) {
+        .limit(1);
+      if (!existing) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Machine not found",
         });
       }
+      if (existing.apiKeyId) {
+        await ctx.db.delete(apikey).where(eq(apikey.id, existing.apiKeyId));
+      }
+      await ctx.db.delete(machine).where(eq(machine.id, input.id));
       return { ok: true as const };
     }),
+
+  apiKey: machineApiKeyAdminRouter,
 });
