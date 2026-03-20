@@ -1,4 +1,4 @@
-import { buttonVariants } from "@slushomat/ui/base/button";
+import { Button } from "@slushomat/ui/base/button";
 import {
   Card,
   CardContent,
@@ -6,16 +6,45 @@ import {
   CardHeader,
   CardTitle,
 } from "@slushomat/ui/base/card";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@slushomat/ui/base/sheet";
+import {
+  BusinessEntityForm,
+  type BusinessEntityFormValues,
+} from "@slushomat/ui/composite/business-entity-form";
 import { ProductListRow } from "@slushomat/ui/composite/product-list-row";
 import { PurchasesTable } from "@slushomat/ui/composite/purchases-table";
 import { BusinessEntityListRow } from "@slushomat/ui/composite/business-entity-list-row";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { cn } from "@slushomat/ui/lib/utils";
 
 import { trpc } from "@/utils/trpc";
+
+function errMessage(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  return "Something went wrong";
+}
+
+const emptyEntityForm = (): BusinessEntityFormValues => ({
+  name: "",
+  legalName: "",
+  legalForm: "",
+  vatId: "",
+  street: "",
+  city: "",
+  postalCode: "",
+  country: "DE",
+});
 
 export const Route = createFileRoute("/_admin/customers/$customerId")({
   component: CustomerDetailPage,
@@ -33,7 +62,12 @@ function formatEur(cents: number): string {
 function CustomerDetailPage() {
   const { customerId } = Route.useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState<TabId>("overview");
+  const [entitySheetOpen, setEntitySheetOpen] = useState(false);
+  const [entityForm, setEntityForm] = useState<BusinessEntityFormValues>(
+    emptyEntityForm,
+  );
   const [purchaseFilters, setPurchaseFilters] = useState<{
     dateFrom?: Date;
     dateTo?: Date;
@@ -69,6 +103,21 @@ function CustomerDetailPage() {
       limit: 100,
     }),
     enabled: tab === "purchases",
+  });
+
+  const createEntityMutation = useMutation({
+    ...trpc.admin.businessEntity.create.mutationOptions(),
+    onSuccess: () => {
+      toast.success("Business entity created");
+      void queryClient.invalidateQueries(
+        trpc.admin.businessEntity.listByOrganization.queryFilter({
+          organizationId: customerId,
+        }),
+      );
+      setEntitySheetOpen(false);
+      setEntityForm(emptyEntityForm());
+    },
+    onError: (e) => toast.error(errMessage(e)),
   });
 
   const entityOptions = useMemo(
@@ -163,13 +212,17 @@ function CustomerDetailPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-4">
             <h2 className="text-sm font-medium">Business entities</h2>
-            <Link
-              to="/businesses"
-              search={{ organizationId: customerId }}
-              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setEntityForm(emptyEntityForm());
+                setEntitySheetOpen(true);
+              }}
             >
               Add entity
-            </Link>
+            </Button>
           </div>
           {entitiesQuery.isPending ? (
             <p className="text-xs text-muted-foreground">Loading…</p>
@@ -297,6 +350,54 @@ function CustomerDetailPage() {
           machineOptions={machineOptions}
         />
       ) : null}
+
+      <Sheet open={entitySheetOpen} onOpenChange={setEntitySheetOpen}>
+        <SheetContent className="flex max-h-[100dvh] flex-col gap-0 overflow-y-auto sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>Add business entity</SheetTitle>
+            <SheetDescription>
+              Legal entity for this customer — used on contracts and
+              deployments.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+            <BusinessEntityForm
+              idPrefix="customer-entity"
+              value={entityForm}
+              onChange={setEntityForm}
+              disabled={createEntityMutation.isPending}
+            />
+          </div>
+          <SheetFooter className="border-t border-border pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setEntitySheetOpen(false)}
+              disabled={createEntityMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={createEntityMutation.isPending}
+              onClick={() => {
+                if (!entityForm.name.trim() || !entityForm.legalName.trim()) {
+                  toast.error("Name and legal name are required");
+                  return;
+                }
+                createEntityMutation.mutate({
+                  organizationId: customerId,
+                  ...entityForm,
+                });
+              }}
+            >
+              Create
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
