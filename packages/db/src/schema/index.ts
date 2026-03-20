@@ -6,3 +6,4 @@ export * from "./operator-product";
 export * from "./business-entity";
 export * from "./operator-contract";
 export * from "./machine-lifecycle";
+export * from "./purchase";
