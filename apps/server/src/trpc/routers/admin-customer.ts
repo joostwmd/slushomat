@@ -53,9 +53,9 @@ export const adminCustomerRouter = router({
       const activeMachineCounts = ctx.db
         .select({
           organizationId: operatorContract.organizationId,
-          n: sql<number>`count(distinct ${operatorContract.machineId})::int`.mapWith(
-            Number,
-          ),
+          n: sql<number>`count(distinct ${operatorContract.machineId})::int`
+            .mapWith(Number)
+            .as("n"),
         })
         .from(operatorContract)
         .innerJoin(
