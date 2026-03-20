@@ -1,0 +1,282 @@
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  isNull,
+  sql,
+} from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
+import { z } from "zod";
+import {
+  machine,
+  machineDeployment,
+  machineVersion,
+  member,
+  operatorContract,
+  operatorContractVersion,
+  organization,
+  user,
+} from "@slushomat/db/schema";
+import { router } from "../init";
+import { adminProcedure } from "../procedures";
+
+const contractStatusSchema = z.enum([
+  "draft",
+  "active",
+  "terminated",
+  "none",
+]);
+
+export const adminCustomerRouter = router({
+  list: adminProcedure
+    .input(
+      z
+        .object({
+          search: z.string().optional(),
+        })
+        .optional()
+        .default({}),
+    )
+    .output(
+      z.array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+          slug: z.string(),
+          createdAt: z.date(),
+          machineCount: z.number().int(),
+        }),
+      ),
+    )
+    .query(async ({ ctx, input }) => {
+      const activeMachineCounts = ctx.db
+        .select({
+          organizationId: operatorContract.organizationId,
+          n: sql<number>`count(distinct ${operatorContract.machineId})::int`
+            .mapWith(Number)
+            .as("n"),
+        })
+        .from(operatorContract)
+        .innerJoin(
+          operatorContractVersion,
+          eq(operatorContract.currentVersionId, operatorContractVersion.id),
+        )
+        .where(eq(operatorContractVersion.status, "active"))
+        .groupBy(operatorContract.organizationId)
+        .as("active_machine_counts");
+
+      const q = ctx.db
+        .select({
+          id: organization.id,
+          name: organization.name,
+          slug: organization.slug,
+          createdAt: organization.createdAt,
+          machineCount: sql<number>`coalesce(${activeMachineCounts.n}, 0)::int`.mapWith(
+            Number,
+          ),
+        })
+        .from(organization)
+        .leftJoin(
+          activeMachineCounts,
+          eq(organization.id, activeMachineCounts.organizationId),
+        );
+
+      const rows = input.search?.trim()
+        ? await q
+            .where(ilike(organization.name, `%${input.search.trim()}%`))
+            .orderBy(desc(organization.createdAt))
+        : await q.orderBy(desc(organization.createdAt));
+
+      return rows;
+    }),
+
+  get: adminProcedure
+    .input(z.object({ organizationId: z.string().min(1) }))
+    .output(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        slug: z.string(),
+        createdAt: z.date(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const [row] = await ctx.db
+        .select({
+          id: organization.id,
+          name: organization.name,
+          slug: organization.slug,
+          createdAt: organization.createdAt,
+        })
+        .from(organization)
+        .where(eq(organization.id, input.organizationId))
+        .limit(1);
+      if (!row) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Organization not found",
+        });
+      }
+      return row;
+    }),
+
+  listMachines: adminProcedure
+    .input(z.object({ organizationId: z.string().min(1) }))
+    .output(
+      z.array(
+        z.object({
+          machineId: z.string(),
+          versionNumber: z.string(),
+          contractStatus: contractStatusSchema,
+          hasOpenDeployment: z.boolean(),
+        }),
+      ),
+    )
+    .query(async ({ ctx, input }) => {
+      const contractRows = await ctx.db
+        .select({
+          machineId: machine.id,
+          versionNumber: machineVersion.versionNumber,
+          status: operatorContractVersion.status,
+          versionCreatedAt: operatorContractVersion.createdAt,
+        })
+        .from(operatorContract)
+        .innerJoin(machine, eq(operatorContract.machineId, machine.id))
+        .innerJoin(
+          machineVersion,
+          eq(machine.machineVersionId, machineVersion.id),
+        )
+        .leftJoin(
+          operatorContractVersion,
+          eq(operatorContract.currentVersionId, operatorContractVersion.id),
+        )
+        .where(eq(operatorContract.organizationId, input.organizationId))
+        .orderBy(asc(machine.id), desc(operatorContractVersion.createdAt));
+
+      const seen = new Set<string>();
+      const picked: {
+        machineId: string;
+        versionNumber: string;
+        contractStatus: z.infer<typeof contractStatusSchema>;
+      }[] = [];
+
+      for (const row of contractRows) {
+        if (seen.has(row.machineId)) continue;
+        seen.add(row.machineId);
+        picked.push({
+          machineId: row.machineId,
+          versionNumber: row.versionNumber,
+          contractStatus:
+            (row.status as z.infer<typeof contractStatusSchema> | undefined) ??
+            "none",
+        });
+      }
+
+      if (picked.length === 0) {
+        return [];
+      }
+
+      const machineIds = picked.map((p) => p.machineId);
+      const openRows = await ctx.db
+        .select({ machineId: machineDeployment.machineId })
+        .from(machineDeployment)
+        .where(
+          and(
+            inArray(machineDeployment.machineId, machineIds),
+            isNull(machineDeployment.endedAt),
+          ),
+        );
+      const openSet = new Set(openRows.map((r) => r.machineId));
+
+      return picked.map((p) => ({
+        ...p,
+        hasOpenDeployment: openSet.has(p.machineId),
+      }));
+    }),
+
+  /** Better Auth organization plugin uses `owner` for the creating member. */
+  getOrganizationOwner: adminProcedure
+    .input(z.object({ organizationId: z.string().min(1) }))
+    .output(
+      z
+        .object({
+          userId: z.string(),
+          name: z.string(),
+          email: z.string(),
+          role: z.string(),
+        })
+        .nullable(),
+    )
+    .query(async ({ ctx, input }) => {
+      const [org] = await ctx.db
+        .select({ id: organization.id })
+        .from(organization)
+        .where(eq(organization.id, input.organizationId))
+        .limit(1);
+      if (!org) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Organization not found",
+        });
+      }
+
+      const [owner] = await ctx.db
+        .select({
+          userId: user.id,
+          name: user.name,
+          email: user.email,
+          role: member.role,
+        })
+        .from(member)
+        .innerJoin(user, eq(member.userId, user.id))
+        .where(
+          and(
+            eq(member.organizationId, input.organizationId),
+            eq(member.role, "owner"),
+          ),
+        )
+        .limit(1);
+
+      return owner ?? null;
+    }),
+
+  /** Sets `machine.disabled` for every machine linked to the org via operator contracts. */
+  disableAllMachines: adminProcedure
+    .input(z.object({ organizationId: z.string().min(1) }))
+    .output(z.object({ count: z.number().int() }))
+    .mutation(async ({ ctx, input }) => {
+      const [org] = await ctx.db
+        .select({ id: organization.id })
+        .from(organization)
+        .where(eq(organization.id, input.organizationId))
+        .limit(1);
+      if (!org) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Organization not found",
+        });
+      }
+
+      const idRows = await ctx.db
+        .select({ machineId: operatorContract.machineId })
+        .from(operatorContract)
+        .where(eq(operatorContract.organizationId, input.organizationId))
+        .groupBy(operatorContract.machineId);
+
+      if (idRows.length === 0) {
+        return { count: 0 };
+      }
+
+      const machineIds = idRows.map((r) => r.machineId);
+      const updated = await ctx.db
+        .update(machine)
+        .set({ disabled: true })
+        .where(inArray(machine.id, machineIds))
+        .returning({ id: machine.id });
+
+      return { count: updated.length };
+    }),
+});

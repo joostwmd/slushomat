@@ -28,14 +28,12 @@ import {
   Building2Icon,
   WrenchIcon,
   PackageIcon,
-  BriefcaseIcon,
   TruckIcon,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { title: "Users", url: "/users", icon: <UsersIcon /> },
   { title: "Customers", url: "/customers", icon: <Building2Icon /> },
-  { title: "Businesses", url: "/businesses", icon: <BriefcaseIcon /> },
   { title: "Contracts", url: "/contracts", icon: <FileTextIcon /> },
   { title: "Deployments", url: "/deployments", icon: <TruckIcon /> },
   { title: "Machines", url: "/machines", icon: <WrenchIcon /> },
@@ -96,7 +94,14 @@ export function AdminAppSidebar({ user }: { user: SessionUser }) {
           <SidebarGroup>
             <SidebarMenu>
               {NAV_ITEMS.map((item) => {
-                const isActive = location.pathname === item.url;
+                const isActive =
+                  location.pathname === item.url ||
+                  (item.url === "/customers" &&
+                    (location.pathname === "/customers/" ||
+                      location.pathname.startsWith("/customers/"))) ||
+                  (item.url === "/machines" &&
+                    (location.pathname === "/machines" ||
+                      location.pathname.startsWith("/machines/")));
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton

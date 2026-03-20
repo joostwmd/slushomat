@@ -18,12 +18,15 @@ import { Route as ProtectedOrganizationsRouteImport } from './routes/_protected/
 import { Route as ProtectedInvitationsRouteImport } from './routes/_protected/invitations'
 import { Route as ProtectedOrgSlugRouteRouteImport } from './routes/_protected/$orgSlug/route'
 import { Route as ProtectedOrgSlugIndexRouteImport } from './routes/_protected/$orgSlug/index'
+import { Route as ProtectedOrgSlugPurchasesRouteImport } from './routes/_protected/$orgSlug/purchases'
 import { Route as ProtectedOrgSlugProductsRouteImport } from './routes/_protected/$orgSlug/products'
-import { Route as ProtectedOrgSlugMachinesRouteImport } from './routes/_protected/$orgSlug/machines'
 import { Route as ProtectedOrgSlugDashboardRouteImport } from './routes/_protected/$orgSlug/dashboard'
 import { Route as ProtectedOrgSlugContractsRouteImport } from './routes/_protected/$orgSlug/contracts'
 import { Route as ProtectedOrgSlugBusinessesRouteImport } from './routes/_protected/$orgSlug/businesses'
-import { Route as ProtectedOrgSlugMachinesMachineIdRouteImport } from './routes/_protected/$orgSlug/machines.$machineId'
+import { Route as ProtectedOrgSlugMachinesRouteRouteImport } from './routes/_protected/$orgSlug/machines/route'
+import { Route as ProtectedOrgSlugMachinesIndexRouteImport } from './routes/_protected/$orgSlug/machines/index'
+import { Route as ProtectedOrgSlugMachinesMachineIdRouteImport } from './routes/_protected/$orgSlug/machines/$machineId'
+import { Route as ProtectedOrgSlugMachinesMachineIdPurchasesRouteImport } from './routes/_protected/$orgSlug/machines/$machineId.purchases'
 
 const SignInRoute = SignInRouteImport.update({
   id: '/sign-in',
@@ -69,16 +72,16 @@ const ProtectedOrgSlugIndexRoute = ProtectedOrgSlugIndexRouteImport.update({
   path: '/',
   getParentRoute: () => ProtectedOrgSlugRouteRoute,
 } as any)
+const ProtectedOrgSlugPurchasesRoute =
+  ProtectedOrgSlugPurchasesRouteImport.update({
+    id: '/purchases',
+    path: '/purchases',
+    getParentRoute: () => ProtectedOrgSlugRouteRoute,
+  } as any)
 const ProtectedOrgSlugProductsRoute =
   ProtectedOrgSlugProductsRouteImport.update({
     id: '/products',
     path: '/products',
-    getParentRoute: () => ProtectedOrgSlugRouteRoute,
-  } as any)
-const ProtectedOrgSlugMachinesRoute =
-  ProtectedOrgSlugMachinesRouteImport.update({
-    id: '/machines',
-    path: '/machines',
     getParentRoute: () => ProtectedOrgSlugRouteRoute,
   } as any)
 const ProtectedOrgSlugDashboardRoute =
@@ -99,11 +102,29 @@ const ProtectedOrgSlugBusinessesRoute =
     path: '/businesses',
     getParentRoute: () => ProtectedOrgSlugRouteRoute,
   } as any)
+const ProtectedOrgSlugMachinesRouteRoute =
+  ProtectedOrgSlugMachinesRouteRouteImport.update({
+    id: '/machines',
+    path: '/machines',
+    getParentRoute: () => ProtectedOrgSlugRouteRoute,
+  } as any)
+const ProtectedOrgSlugMachinesIndexRoute =
+  ProtectedOrgSlugMachinesIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => ProtectedOrgSlugMachinesRouteRoute,
+  } as any)
 const ProtectedOrgSlugMachinesMachineIdRoute =
   ProtectedOrgSlugMachinesMachineIdRouteImport.update({
     id: '/$machineId',
     path: '/$machineId',
-    getParentRoute: () => ProtectedOrgSlugMachinesRoute,
+    getParentRoute: () => ProtectedOrgSlugMachinesRouteRoute,
+  } as any)
+const ProtectedOrgSlugMachinesMachineIdPurchasesRoute =
+  ProtectedOrgSlugMachinesMachineIdPurchasesRouteImport.update({
+    id: '/purchases',
+    path: '/purchases',
+    getParentRoute: () => ProtectedOrgSlugMachinesMachineIdRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -114,13 +135,16 @@ export interface FileRoutesByFullPath {
   '/invitations': typeof ProtectedInvitationsRoute
   '/organizations': typeof ProtectedOrganizationsRoute
   '/auth/handoff': typeof AuthHandoffRoute
+  '/$orgSlug/machines': typeof ProtectedOrgSlugMachinesRouteRouteWithChildren
   '/$orgSlug/businesses': typeof ProtectedOrgSlugBusinessesRoute
   '/$orgSlug/contracts': typeof ProtectedOrgSlugContractsRoute
   '/$orgSlug/dashboard': typeof ProtectedOrgSlugDashboardRoute
-  '/$orgSlug/machines': typeof ProtectedOrgSlugMachinesRouteWithChildren
   '/$orgSlug/products': typeof ProtectedOrgSlugProductsRoute
+  '/$orgSlug/purchases': typeof ProtectedOrgSlugPurchasesRoute
   '/$orgSlug/': typeof ProtectedOrgSlugIndexRoute
-  '/$orgSlug/machines/$machineId': typeof ProtectedOrgSlugMachinesMachineIdRoute
+  '/$orgSlug/machines/$machineId': typeof ProtectedOrgSlugMachinesMachineIdRouteWithChildren
+  '/$orgSlug/machines/': typeof ProtectedOrgSlugMachinesIndexRoute
+  '/$orgSlug/machines/$machineId/purchases': typeof ProtectedOrgSlugMachinesMachineIdPurchasesRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRouteRouteWithChildren
@@ -132,10 +156,12 @@ export interface FileRoutesByTo {
   '/$orgSlug/businesses': typeof ProtectedOrgSlugBusinessesRoute
   '/$orgSlug/contracts': typeof ProtectedOrgSlugContractsRoute
   '/$orgSlug/dashboard': typeof ProtectedOrgSlugDashboardRoute
-  '/$orgSlug/machines': typeof ProtectedOrgSlugMachinesRouteWithChildren
   '/$orgSlug/products': typeof ProtectedOrgSlugProductsRoute
+  '/$orgSlug/purchases': typeof ProtectedOrgSlugPurchasesRoute
   '/$orgSlug': typeof ProtectedOrgSlugIndexRoute
-  '/$orgSlug/machines/$machineId': typeof ProtectedOrgSlugMachinesMachineIdRoute
+  '/$orgSlug/machines/$machineId': typeof ProtectedOrgSlugMachinesMachineIdRouteWithChildren
+  '/$orgSlug/machines': typeof ProtectedOrgSlugMachinesIndexRoute
+  '/$orgSlug/machines/$machineId/purchases': typeof ProtectedOrgSlugMachinesMachineIdPurchasesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -147,13 +173,16 @@ export interface FileRoutesById {
   '/_protected/organizations': typeof ProtectedOrganizationsRoute
   '/auth/handoff': typeof AuthHandoffRoute
   '/_protected/': typeof ProtectedIndexRoute
+  '/_protected/$orgSlug/machines': typeof ProtectedOrgSlugMachinesRouteRouteWithChildren
   '/_protected/$orgSlug/businesses': typeof ProtectedOrgSlugBusinessesRoute
   '/_protected/$orgSlug/contracts': typeof ProtectedOrgSlugContractsRoute
   '/_protected/$orgSlug/dashboard': typeof ProtectedOrgSlugDashboardRoute
-  '/_protected/$orgSlug/machines': typeof ProtectedOrgSlugMachinesRouteWithChildren
   '/_protected/$orgSlug/products': typeof ProtectedOrgSlugProductsRoute
+  '/_protected/$orgSlug/purchases': typeof ProtectedOrgSlugPurchasesRoute
   '/_protected/$orgSlug/': typeof ProtectedOrgSlugIndexRoute
-  '/_protected/$orgSlug/machines/$machineId': typeof ProtectedOrgSlugMachinesMachineIdRoute
+  '/_protected/$orgSlug/machines/$machineId': typeof ProtectedOrgSlugMachinesMachineIdRouteWithChildren
+  '/_protected/$orgSlug/machines/': typeof ProtectedOrgSlugMachinesIndexRoute
+  '/_protected/$orgSlug/machines/$machineId/purchases': typeof ProtectedOrgSlugMachinesMachineIdPurchasesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -165,13 +194,16 @@ export interface FileRouteTypes {
     | '/invitations'
     | '/organizations'
     | '/auth/handoff'
+    | '/$orgSlug/machines'
     | '/$orgSlug/businesses'
     | '/$orgSlug/contracts'
     | '/$orgSlug/dashboard'
-    | '/$orgSlug/machines'
     | '/$orgSlug/products'
+    | '/$orgSlug/purchases'
     | '/$orgSlug/'
     | '/$orgSlug/machines/$machineId'
+    | '/$orgSlug/machines/'
+    | '/$orgSlug/machines/$machineId/purchases'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
@@ -183,10 +215,12 @@ export interface FileRouteTypes {
     | '/$orgSlug/businesses'
     | '/$orgSlug/contracts'
     | '/$orgSlug/dashboard'
-    | '/$orgSlug/machines'
     | '/$orgSlug/products'
+    | '/$orgSlug/purchases'
     | '/$orgSlug'
     | '/$orgSlug/machines/$machineId'
+    | '/$orgSlug/machines'
+    | '/$orgSlug/machines/$machineId/purchases'
   id:
     | '__root__'
     | '/_protected'
@@ -197,13 +231,16 @@ export interface FileRouteTypes {
     | '/_protected/organizations'
     | '/auth/handoff'
     | '/_protected/'
+    | '/_protected/$orgSlug/machines'
     | '/_protected/$orgSlug/businesses'
     | '/_protected/$orgSlug/contracts'
     | '/_protected/$orgSlug/dashboard'
-    | '/_protected/$orgSlug/machines'
     | '/_protected/$orgSlug/products'
+    | '/_protected/$orgSlug/purchases'
     | '/_protected/$orgSlug/'
     | '/_protected/$orgSlug/machines/$machineId'
+    | '/_protected/$orgSlug/machines/'
+    | '/_protected/$orgSlug/machines/$machineId/purchases'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -277,18 +314,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedOrgSlugIndexRouteImport
       parentRoute: typeof ProtectedOrgSlugRouteRoute
     }
+    '/_protected/$orgSlug/purchases': {
+      id: '/_protected/$orgSlug/purchases'
+      path: '/purchases'
+      fullPath: '/$orgSlug/purchases'
+      preLoaderRoute: typeof ProtectedOrgSlugPurchasesRouteImport
+      parentRoute: typeof ProtectedOrgSlugRouteRoute
+    }
     '/_protected/$orgSlug/products': {
       id: '/_protected/$orgSlug/products'
       path: '/products'
       fullPath: '/$orgSlug/products'
       preLoaderRoute: typeof ProtectedOrgSlugProductsRouteImport
-      parentRoute: typeof ProtectedOrgSlugRouteRoute
-    }
-    '/_protected/$orgSlug/machines': {
-      id: '/_protected/$orgSlug/machines'
-      path: '/machines'
-      fullPath: '/$orgSlug/machines'
-      preLoaderRoute: typeof ProtectedOrgSlugMachinesRouteImport
       parentRoute: typeof ProtectedOrgSlugRouteRoute
     }
     '/_protected/$orgSlug/dashboard': {
@@ -312,46 +349,87 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedOrgSlugBusinessesRouteImport
       parentRoute: typeof ProtectedOrgSlugRouteRoute
     }
+    '/_protected/$orgSlug/machines': {
+      id: '/_protected/$orgSlug/machines'
+      path: '/machines'
+      fullPath: '/$orgSlug/machines'
+      preLoaderRoute: typeof ProtectedOrgSlugMachinesRouteRouteImport
+      parentRoute: typeof ProtectedOrgSlugRouteRoute
+    }
+    '/_protected/$orgSlug/machines/': {
+      id: '/_protected/$orgSlug/machines/'
+      path: '/'
+      fullPath: '/$orgSlug/machines/'
+      preLoaderRoute: typeof ProtectedOrgSlugMachinesIndexRouteImport
+      parentRoute: typeof ProtectedOrgSlugMachinesRouteRoute
+    }
     '/_protected/$orgSlug/machines/$machineId': {
       id: '/_protected/$orgSlug/machines/$machineId'
       path: '/$machineId'
       fullPath: '/$orgSlug/machines/$machineId'
       preLoaderRoute: typeof ProtectedOrgSlugMachinesMachineIdRouteImport
-      parentRoute: typeof ProtectedOrgSlugMachinesRoute
+      parentRoute: typeof ProtectedOrgSlugMachinesRouteRoute
+    }
+    '/_protected/$orgSlug/machines/$machineId/purchases': {
+      id: '/_protected/$orgSlug/machines/$machineId/purchases'
+      path: '/purchases'
+      fullPath: '/$orgSlug/machines/$machineId/purchases'
+      preLoaderRoute: typeof ProtectedOrgSlugMachinesMachineIdPurchasesRouteImport
+      parentRoute: typeof ProtectedOrgSlugMachinesMachineIdRoute
     }
   }
 }
 
-interface ProtectedOrgSlugMachinesRouteChildren {
-  ProtectedOrgSlugMachinesMachineIdRoute: typeof ProtectedOrgSlugMachinesMachineIdRoute
+interface ProtectedOrgSlugMachinesMachineIdRouteChildren {
+  ProtectedOrgSlugMachinesMachineIdPurchasesRoute: typeof ProtectedOrgSlugMachinesMachineIdPurchasesRoute
 }
 
-const ProtectedOrgSlugMachinesRouteChildren: ProtectedOrgSlugMachinesRouteChildren =
+const ProtectedOrgSlugMachinesMachineIdRouteChildren: ProtectedOrgSlugMachinesMachineIdRouteChildren =
   {
-    ProtectedOrgSlugMachinesMachineIdRoute:
-      ProtectedOrgSlugMachinesMachineIdRoute,
+    ProtectedOrgSlugMachinesMachineIdPurchasesRoute:
+      ProtectedOrgSlugMachinesMachineIdPurchasesRoute,
   }
 
-const ProtectedOrgSlugMachinesRouteWithChildren =
-  ProtectedOrgSlugMachinesRoute._addFileChildren(
-    ProtectedOrgSlugMachinesRouteChildren,
+const ProtectedOrgSlugMachinesMachineIdRouteWithChildren =
+  ProtectedOrgSlugMachinesMachineIdRoute._addFileChildren(
+    ProtectedOrgSlugMachinesMachineIdRouteChildren,
+  )
+
+interface ProtectedOrgSlugMachinesRouteRouteChildren {
+  ProtectedOrgSlugMachinesMachineIdRoute: typeof ProtectedOrgSlugMachinesMachineIdRouteWithChildren
+  ProtectedOrgSlugMachinesIndexRoute: typeof ProtectedOrgSlugMachinesIndexRoute
+}
+
+const ProtectedOrgSlugMachinesRouteRouteChildren: ProtectedOrgSlugMachinesRouteRouteChildren =
+  {
+    ProtectedOrgSlugMachinesMachineIdRoute:
+      ProtectedOrgSlugMachinesMachineIdRouteWithChildren,
+    ProtectedOrgSlugMachinesIndexRoute: ProtectedOrgSlugMachinesIndexRoute,
+  }
+
+const ProtectedOrgSlugMachinesRouteRouteWithChildren =
+  ProtectedOrgSlugMachinesRouteRoute._addFileChildren(
+    ProtectedOrgSlugMachinesRouteRouteChildren,
   )
 
 interface ProtectedOrgSlugRouteRouteChildren {
+  ProtectedOrgSlugMachinesRouteRoute: typeof ProtectedOrgSlugMachinesRouteRouteWithChildren
   ProtectedOrgSlugBusinessesRoute: typeof ProtectedOrgSlugBusinessesRoute
   ProtectedOrgSlugContractsRoute: typeof ProtectedOrgSlugContractsRoute
   ProtectedOrgSlugDashboardRoute: typeof ProtectedOrgSlugDashboardRoute
-  ProtectedOrgSlugMachinesRoute: typeof ProtectedOrgSlugMachinesRouteWithChildren
   ProtectedOrgSlugProductsRoute: typeof ProtectedOrgSlugProductsRoute
+  ProtectedOrgSlugPurchasesRoute: typeof ProtectedOrgSlugPurchasesRoute
   ProtectedOrgSlugIndexRoute: typeof ProtectedOrgSlugIndexRoute
 }
 
 const ProtectedOrgSlugRouteRouteChildren: ProtectedOrgSlugRouteRouteChildren = {
+  ProtectedOrgSlugMachinesRouteRoute:
+    ProtectedOrgSlugMachinesRouteRouteWithChildren,
   ProtectedOrgSlugBusinessesRoute: ProtectedOrgSlugBusinessesRoute,
   ProtectedOrgSlugContractsRoute: ProtectedOrgSlugContractsRoute,
   ProtectedOrgSlugDashboardRoute: ProtectedOrgSlugDashboardRoute,
-  ProtectedOrgSlugMachinesRoute: ProtectedOrgSlugMachinesRouteWithChildren,
   ProtectedOrgSlugProductsRoute: ProtectedOrgSlugProductsRoute,
+  ProtectedOrgSlugPurchasesRoute: ProtectedOrgSlugPurchasesRoute,
   ProtectedOrgSlugIndexRoute: ProtectedOrgSlugIndexRoute,
 }
 

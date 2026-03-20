@@ -6,36 +6,134 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@slushomat/ui/base/breadcrumb";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
-import { Fragment } from "react";
+import { Fragment, useMemo } from "react";
 
-type Crumb = { label: string; to?: string };
+import { trpc } from "@/utils/trpc";
 
-function crumbsForPath(pathname: string): Crumb[] {
-  if (pathname === "/organizations") {
-    return [{ label: "Organizations" }];
+type Crumb = {
+  label: string;
+  to?: string;
+  params?: { orgSlug: string };
+};
+
+const ORG_LIST: Crumb = { label: "Organizations", to: "/organizations" };
+
+const SECTION_LABEL: Record<
+  "dashboard" | "products" | "businesses" | "contracts" | "machines" | "purchases",
+  string
+> = {
+  dashboard: "Dashboard",
+  products: "Products",
+  businesses: "Businesses",
+  contracts: "Contracts",
+  machines: "Machines",
+  purchases: "Purchases",
+};
+
+function shortId(id: string, head = 8, tail = 4): string {
+  if (id.length <= head + tail + 1) return id;
+  return `${id.slice(0, head)}…${id.slice(-tail)}`;
+}
+
+function parseOrgScoped(pathname: string): {
+  orgSlug: string;
+  section: keyof typeof SECTION_LABEL;
+  machineId: string | null;
+} | null {
+  const machinePurchases = pathname.match(
+    /^\/([^/]+)\/machines\/([^/]+)\/purchases\/?$/,
+  );
+  if (machinePurchases) {
+    return {
+      orgSlug: machinePurchases[1]!,
+      section: "machines",
+      machineId: machinePurchases[2]!,
+    };
   }
-  if (pathname === "/invitations") {
-    return [{ label: "Invitations" }];
+  const machineDetail = pathname.match(/^\/([^/]+)\/machines\/([^/]+)\/?$/);
+  if (machineDetail) {
+    return {
+      orgSlug: machineDetail[1]!,
+      section: "machines",
+      machineId: machineDetail[2]!,
+    };
   }
-  if (/^\/[^/]+\/dashboard$/.test(pathname)) {
-    return [
-      { label: "Organizations", to: "/organizations" },
-      { label: "Dashboard" },
-    ];
+  const machinesList = pathname.match(/^\/([^/]+)\/machines\/?$/);
+  if (machinesList) {
+    return {
+      orgSlug: machinesList[1]!,
+      section: "machines",
+      machineId: null,
+    };
   }
-  if (/^\/[^/]+\/products$/.test(pathname)) {
-    return [
-      { label: "Organizations", to: "/organizations" },
-      { label: "Products" },
-    ];
+  const simple = pathname.match(
+    /^\/([^/]+)\/(dashboard|products|businesses|contracts|purchases)\/?$/,
+  );
+  if (simple) {
+    return {
+      orgSlug: simple[1]!,
+      section: simple[2] as keyof typeof SECTION_LABEL,
+      machineId: null,
+    };
   }
-  return [{ label: "Operator" }];
+  return null;
 }
 
 export function OperatorBreadcrumbs() {
   const { pathname } = useLocation();
-  const items = crumbsForPath(pathname);
+  const scoped = useMemo(() => parseOrgScoped(pathname), [pathname]);
+
+  const machineQuery = useQuery({
+    ...trpc.operator.machine.get.queryOptions({
+      orgSlug: scoped?.orgSlug ?? "",
+      machineId: scoped?.machineId ?? "",
+    }),
+    enabled: !!scoped?.orgSlug && !!scoped?.machineId,
+  });
+
+  const items = useMemo((): Crumb[] => {
+    if (pathname === "/organizations") {
+      return [{ label: "Organizations" }];
+    }
+    if (pathname === "/invitations") {
+      return [{ label: "Invitations" }];
+    }
+
+    if (scoped) {
+      const { orgSlug, section, machineId } = scoped;
+      const base: Crumb[] = [ORG_LIST];
+
+      if (machineId) {
+        const machineLabel = machineQuery.isPending
+          ? "…"
+          : machineQuery.isSuccess
+            ? `Model ${machineQuery.data.versionNumber}`
+            : `Machine ${shortId(machineId)}`;
+
+        return [
+          ...base,
+          {
+            label: SECTION_LABEL.machines,
+            to: "/$orgSlug/machines",
+            params: { orgSlug },
+          },
+          { label: machineLabel },
+        ];
+      }
+
+      return [...base, { label: SECTION_LABEL[section] }];
+    }
+
+    return [{ label: "Operator" }];
+  }, [
+    machineQuery.data?.versionNumber,
+    machineQuery.isPending,
+    machineQuery.isSuccess,
+    pathname,
+    scoped,
+  ]);
 
   return (
     <Breadcrumb className="min-w-0 flex-1">
@@ -51,7 +149,13 @@ export function OperatorBreadcrumbs() {
                 ) : (
                   <BreadcrumbLink
                     className="truncate"
-                    render={<Link to={item.to} />}
+                    render={
+                      item.params ? (
+                        <Link to={item.to} params={item.params} />
+                      ) : (
+                        <Link to={item.to} />
+                      )
+                    }
                   >
                     {item.label}
                   </BreadcrumbLink>

@@ -27,6 +27,7 @@ import {
   MailIcon,
   PackageIcon,
   CpuIcon,
+  ReceiptIcon,
 } from "lucide-react";
 
 export function OperatorAppSidebar() {
@@ -68,7 +69,8 @@ export function OperatorAppSidebar() {
     | "/$orgSlug/products"
     | "/$orgSlug/businesses"
     | "/$orgSlug/contracts"
-    | "/$orgSlug/machines";
+    | "/$orgSlug/machines"
+    | "/$orgSlug/purchases";
 
   const NAV_ITEMS: Array<{
     title: string;
@@ -105,6 +107,12 @@ export function OperatorAppSidebar() {
       to: activeSlug ? "/$orgSlug/machines" : "/organizations",
       params: activeSlug ? { orgSlug: activeSlug } : undefined,
       icon: <CpuIcon />,
+    },
+    {
+      title: "Purchases",
+      to: activeSlug ? "/$orgSlug/purchases" : "/organizations",
+      params: activeSlug ? { orgSlug: activeSlug } : undefined,
+      icon: <ReceiptIcon />,
     },
     { title: "Organizations", to: "/organizations", icon: <Building2Icon /> },
     { title: "Invitations", to: "/invitations", icon: <MailIcon /> },

@@ -1,7 +1,8 @@
 /**
  * Admin Users page — lists users with "Open as user" impersonation handoff
  * and optional password reset (tRPC generateUserPassword).
- * Flow: impersonateUser → oneTimeToken.generate → open new tab → stopImpersonating.
+ * Handoff: tRPC `admin.createOperatorHandoffToken` chains impersonation + OTT on the
+ * server so the admin browser session stays admin and the token targets the target user.
  */
 import { authClient } from "@slushomat/auth/client";
 import { env } from "@slushomat/env/web";
@@ -68,23 +69,24 @@ function UsersPage() {
     onError: (e) => toast.error(errMessage(e)),
   });
 
+  const operatorHandoffMutation = useMutation({
+    ...trpc.admin.createOperatorHandoffToken.mutationOptions(),
+    onError: (e) => toast.error(errMessage(e)),
+  });
+
   const handleOpenAsUser = async (userId: string) => {
     setRowBusy({ userId, action: "open" });
     try {
-      await authClient.admin.impersonateUser({ userId });
-      const genRes = await authClient.oneTimeToken.generate();
-      const token =
-        (genRes as { data?: { token?: string }; token?: string })?.data?.token ??
-        (genRes as { data?: { token?: string }; token?: string })?.token;
-      if (!token) throw new Error("No token received");
-
+      const { token } = await operatorHandoffMutation.mutateAsync({ userId });
       const operatorUrl =
         env.VITE_OPERATOR_URL ??
         window.location.origin.replace("admin", "operator");
-
-      window.open(`${operatorUrl}/auth/handoff?token=${token}`, "_blank");
+      window.open(
+        `${operatorUrl}/auth/handoff?token=${encodeURIComponent(token)}`,
+        "_blank",
+      );
     } catch {
-      toast.error("Could not open operator dashboard. Please try again.");
+      /* onError toasts */
     } finally {
       setRowBusy(null);
     }

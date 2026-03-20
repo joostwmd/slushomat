@@ -164,6 +164,36 @@ export const machineAdminRouter = router({
       .orderBy(desc(machine.createdAt));
   }),
 
+  get: adminProcedure
+    .input(z.object({ id: z.string().min(1) }))
+    .output(machineRow)
+    .query(async ({ ctx, input }) => {
+      const [row] = await ctx.db
+        .select({
+          id: machine.id,
+          machineVersionId: machine.machineVersionId,
+          versionNumber: machineVersion.versionNumber,
+          comments: machine.comments,
+          disabled: machine.disabled,
+          createdAt: machine.createdAt,
+          updatedAt: machine.updatedAt,
+        })
+        .from(machine)
+        .innerJoin(
+          machineVersion,
+          eq(machine.machineVersionId, machineVersion.id),
+        )
+        .where(eq(machine.id, input.id))
+        .limit(1);
+      if (!row) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Machine not found",
+        });
+      }
+      return row;
+    }),
+
   create: adminProcedure
     .input(
       z.object({

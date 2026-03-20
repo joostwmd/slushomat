@@ -18,7 +18,7 @@ import { CpuIcon } from "lucide-react";
 
 import { trpc } from "@/utils/trpc";
 
-export const Route = createFileRoute("/_protected/$orgSlug/machines")({
+export const Route = createFileRoute("/_protected/$orgSlug/machines/")({
   component: OperatorMachinesPage,
 });
 
