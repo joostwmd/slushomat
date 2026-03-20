@@ -23,11 +23,19 @@ import { Input } from "@slushomat/ui/base/input";
 import { Label } from "@slushomat/ui/base/label";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { trpc, trpcClient } from "@/utils/trpc";
 
 export const Route = createFileRoute("/_protected/$orgSlug/contracts")({
+  validateSearch: (
+    raw: Record<string, unknown>,
+  ): { machineId?: string } => ({
+    machineId:
+      typeof raw.machineId === "string" && raw.machineId.trim().length > 0
+        ? raw.machineId.trim()
+        : undefined,
+  }),
   component: OperatorContractsPage,
 });
 
@@ -42,7 +50,16 @@ function errMessage(e: unknown): string {
 
 function OperatorContractsPage() {
   const { orgSlug } = Route.useParams();
-  const [machineFilter, setMachineFilter] = useState("");
+  const search = Route.useSearch();
+  const [machineFilter, setMachineFilter] = useState(
+    () => search.machineId ?? "",
+  );
+
+  useEffect(() => {
+    if (search.machineId) {
+      setMachineFilter(search.machineId);
+    }
+  }, [search.machineId]);
 
   const listQuery = useQuery(
     trpc.operator.operatorContract.list.queryOptions({

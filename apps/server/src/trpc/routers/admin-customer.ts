@@ -14,9 +14,11 @@ import {
   machine,
   machineDeployment,
   machineVersion,
+  member,
   operatorContract,
   operatorContractVersion,
   organization,
+  user,
 } from "@slushomat/db/schema";
 import { router } from "../init";
 import { adminProcedure } from "../procedures";
@@ -193,5 +195,88 @@ export const adminCustomerRouter = router({
         ...p,
         hasOpenDeployment: openSet.has(p.machineId),
       }));
+    }),
+
+  /** Better Auth organization plugin uses `owner` for the creating member. */
+  getOrganizationOwner: adminProcedure
+    .input(z.object({ organizationId: z.string().min(1) }))
+    .output(
+      z
+        .object({
+          userId: z.string(),
+          name: z.string(),
+          email: z.string(),
+          role: z.string(),
+        })
+        .nullable(),
+    )
+    .query(async ({ ctx, input }) => {
+      const [org] = await ctx.db
+        .select({ id: organization.id })
+        .from(organization)
+        .where(eq(organization.id, input.organizationId))
+        .limit(1);
+      if (!org) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Organization not found",
+        });
+      }
+
+      const [owner] = await ctx.db
+        .select({
+          userId: user.id,
+          name: user.name,
+          email: user.email,
+          role: member.role,
+        })
+        .from(member)
+        .innerJoin(user, eq(member.userId, user.id))
+        .where(
+          and(
+            eq(member.organizationId, input.organizationId),
+            eq(member.role, "owner"),
+          ),
+        )
+        .limit(1);
+
+      return owner ?? null;
+    }),
+
+  /** Sets `machine.disabled` for every machine linked to the org via operator contracts. */
+  disableAllMachines: adminProcedure
+    .input(z.object({ organizationId: z.string().min(1) }))
+    .output(z.object({ count: z.number().int() }))
+    .mutation(async ({ ctx, input }) => {
+      const [org] = await ctx.db
+        .select({ id: organization.id })
+        .from(organization)
+        .where(eq(organization.id, input.organizationId))
+        .limit(1);
+      if (!org) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Organization not found",
+        });
+      }
+
+      const idRows = await ctx.db
+        .select({ machineId: operatorContract.machineId })
+        .from(operatorContract)
+        .where(eq(operatorContract.organizationId, input.organizationId))
+        .groupBy(operatorContract.machineId);
+
+      if (idRows.length === 0) {
+        return { count: 0 };
+      }
+
+      const machineIds = idRows.map((r) => r.machineId);
+      const updated = await ctx.db
+        .update(machine)
+        .set({ disabled: true })
+        .where(inArray(machine.id, machineIds))
+        .returning({ id: machine.id });
+
+      return { count: updated.length };
     }),
 });

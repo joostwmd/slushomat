@@ -98,7 +98,10 @@ export function AdminAppSidebar({ user }: { user: SessionUser }) {
                   location.pathname === item.url ||
                   (item.url === "/customers" &&
                     (location.pathname === "/customers/" ||
-                      location.pathname.startsWith("/customers/")));
+                      location.pathname.startsWith("/customers/"))) ||
+                  (item.url === "/machines" &&
+                    (location.pathname === "/machines" ||
+                      location.pathname.startsWith("/machines/")));
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton

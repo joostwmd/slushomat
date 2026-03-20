@@ -112,7 +112,7 @@ function OperatorPurchasesPage() {
             {(machinesQuery.data ?? []).map((m) => (
               <li key={m.id}>
                 <Link
-                  to="/$orgSlug/machines/$machineId/purchases"
+                  to="/$orgSlug/machines/$machineId"
                   params={{ orgSlug, machineId: m.id }}
                   className="block outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
@@ -121,7 +121,7 @@ function OperatorPurchasesPage() {
                       <CpuIcon className="size-5 text-muted-foreground" />
                       <CardTitle className="font-mono text-sm">{m.id}</CardTitle>
                       <CardDescription className="text-xs">
-                        View purchases for this machine
+                        Purchases, contract, and slot configuration
                       </CardDescription>
                     </CardHeader>
                     <CardContent>

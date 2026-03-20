@@ -18,7 +18,7 @@ import {
   SheetTitle,
 } from "@slushomat/ui/base/sheet";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { cn } from "@slushomat/ui/lib/utils";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -391,17 +391,27 @@ function MachinesPage() {
                     {machines.map((m) => (
                       <tr key={m.id} className="border-b border-border last:border-0">
                         <td className="px-3 py-2 font-mono text-[11px]">
-                          <button
-                            type="button"
-                            className="underline-offset-2 hover:underline"
-                            title="Copy full id"
-                            onClick={async () => {
-                              await navigator.clipboard.writeText(m.id);
-                              toast.success("Id copied");
-                            }}
-                          >
-                            {m.id.slice(0, 8)}…
-                          </button>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Link
+                              to="/machines/$machineId"
+                              params={{ machineId: m.id }}
+                              className="underline-offset-2 hover:underline"
+                              title="Machine details"
+                            >
+                              {m.id.slice(0, 8)}…
+                            </Link>
+                            <button
+                              type="button"
+                              className="text-muted-foreground underline-offset-2 hover:underline"
+                              title="Copy full id"
+                              onClick={async () => {
+                                await navigator.clipboard.writeText(m.id);
+                                toast.success("Id copied");
+                              }}
+                            >
+                              Copy
+                            </button>
+                          </div>
                         </td>
                         <td className="px-3 py-2 font-mono">{m.versionNumber}</td>
                         <td

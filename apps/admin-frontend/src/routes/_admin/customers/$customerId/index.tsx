@@ -21,8 +21,10 @@ import {
 import { ProductListRow } from "@slushomat/ui/composite/product-list-row";
 import { PurchasesTable } from "@slushomat/ui/composite/purchases-table";
 import { BusinessEntityListRow } from "@slushomat/ui/composite/business-entity-list-row";
+import { env } from "@slushomat/env/web";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Loader2Icon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -46,7 +48,7 @@ const emptyEntityForm = (): BusinessEntityFormValues => ({
   country: "DE",
 });
 
-export const Route = createFileRoute("/_admin/customers/$customerId")({
+export const Route = createFileRoute("/_admin/customers/$customerId/")({
   component: CustomerDetailPage,
 });
 
@@ -105,6 +107,38 @@ function CustomerDetailPage() {
     enabled: tab === "purchases",
   });
 
+  const ownerQuery = useQuery({
+    ...trpc.admin.customer.getOrganizationOwner.queryOptions({
+      organizationId: customerId,
+    }),
+    enabled: orgQuery.isSuccess,
+  });
+
+  const [impersonateOwnerBusy, setImpersonateOwnerBusy] = useState(false);
+
+  const operatorHandoffMutation = useMutation({
+    ...trpc.admin.createOperatorHandoffToken.mutationOptions(),
+    onError: (e) => toast.error(errMessage(e)),
+  });
+
+  const disableAllMachinesMutation = useMutation({
+    ...trpc.admin.customer.disableAllMachines.mutationOptions(),
+    onSuccess: (data) => {
+      toast.success(
+        data.count === 0
+          ? "No machines linked to this organization via contracts."
+          : `Disabled ${data.count} machine(s).`,
+      );
+      void queryClient.invalidateQueries(
+        trpc.admin.customer.listMachines.queryFilter({
+          organizationId: customerId,
+        }),
+      );
+      void queryClient.invalidateQueries(trpc.admin.machine.list.queryFilter());
+    },
+    onError: (e) => toast.error(errMessage(e)),
+  });
+
   const createEntityMutation = useMutation({
     ...trpc.admin.businessEntity.create.mutationOptions(),
     onSuccess: () => {
@@ -158,6 +192,39 @@ function CustomerDetailPage() {
     { id: "purchases", label: "Purchases" },
   ];
 
+  const handleImpersonateOwner = async () => {
+    const owner = ownerQuery.data;
+    if (!owner) return;
+    setImpersonateOwnerBusy(true);
+    try {
+      const { token } = await operatorHandoffMutation.mutateAsync({
+        userId: owner.userId,
+      });
+      const operatorUrl =
+        env.VITE_OPERATOR_URL ??
+        window.location.origin.replace("admin", "operator");
+      window.open(
+        `${operatorUrl}/auth/handoff?token=${encodeURIComponent(token)}`,
+        "_blank",
+      );
+      toast.success("Opening operator dashboard in a new tab…");
+    } catch {
+      /* mutation onError toasts */
+    } finally {
+      setImpersonateOwnerBusy(false);
+    }
+  };
+
+  const handleDisableAllMachines = () => {
+    const n = machinesQuery.data?.length ?? 0;
+    const message =
+      n === 0
+        ? "This organization has no machines linked by contract. Nothing will change. Continue?"
+        : `Disable all ${n} machine(s) linked to this organization? Devices will stop authenticating until re-enabled.`;
+    if (!window.confirm(message)) return;
+    disableAllMachinesMutation.mutate({ organizationId: customerId });
+  };
+
   if (orgQuery.isError) {
     return (
       <div className="container mx-auto max-w-5xl px-4 py-8">
@@ -177,16 +244,81 @@ function CustomerDetailPage() {
 
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8">
-      <div className="mb-6 flex flex-wrap items-center gap-3">
-        {orgQuery.isPending ? (
-          <span className="text-sm text-muted-foreground">Loading…</span>
-        ) : org ? (
-          <>
-            <h1 className="text-xl font-medium">{org.name}</h1>
-            <span className="rounded-none border border-border px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
-              {org.slug}
-            </span>
-          </>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 flex-wrap items-center gap-3">
+          {orgQuery.isPending ? (
+            <span className="text-sm text-muted-foreground">Loading…</span>
+          ) : org ? (
+            <>
+              <h1 className="text-xl font-medium">{org.name}</h1>
+              <span className="rounded-none border border-border px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
+                {org.slug}
+              </span>
+            </>
+          ) : null}
+        </div>
+        {org ? (
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-none text-xs"
+              disabled={
+                impersonateOwnerBusy ||
+                operatorHandoffMutation.isPending ||
+                ownerQuery.isPending ||
+                ownerQuery.isError ||
+                !ownerQuery.data
+              }
+              title={
+                ownerQuery.data
+                  ? `Open operator as ${ownerQuery.data.email}`
+                  : "No member with role “owner” for this organization."
+              }
+              onClick={() => void handleImpersonateOwner()}
+            >
+              {impersonateOwnerBusy ? (
+                <>
+                  <Loader2Icon
+                    className="size-3.5 animate-spin"
+                    aria-hidden
+                  />
+                  <span className="ml-1.5">Opening…</span>
+                </>
+              ) : ownerQuery.isPending ? (
+                <>
+                  <Loader2Icon
+                    className="size-3.5 animate-spin"
+                    aria-hidden
+                  />
+                  <span className="ml-1.5">Loading…</span>
+                </>
+              ) : (
+                "Impersonate owner"
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              className="rounded-none text-xs"
+              disabled={disableAllMachinesMutation.isPending}
+              onClick={handleDisableAllMachines}
+            >
+              {disableAllMachinesMutation.isPending ? (
+                <>
+                  <Loader2Icon
+                    className="size-3.5 animate-spin"
+                    aria-hidden
+                  />
+                  <span className="ml-1.5">Disabling…</span>
+                </>
+              ) : (
+                "Disable all machines"
+              )}
+            </Button>
+          </div>
         ) : null}
       </div>
 

@@ -55,10 +55,16 @@ function parseCustomerPaths(pathname: string): {
   return { customerId: null, machineId: null };
 }
 
+function parseStandaloneMachineId(pathname: string): string | null {
+  const m = pathname.match(/^\/machines\/([^/]+)$/);
+  return m?.[1] ?? null;
+}
+
 export function AdminBreadcrumbs() {
   const { pathname } = useLocation();
   const norm = normalizePath(pathname);
   const { customerId, machineId } = parseCustomerPaths(pathname);
+  const standaloneMachineId = parseStandaloneMachineId(pathname);
 
   const orgQuery = useQuery({
     ...trpc.admin.customer.get.queryOptions({
@@ -85,6 +91,14 @@ export function AdminBreadcrumbs() {
       return base;
     }
 
+    if (standaloneMachineId) {
+      return [
+        DASH,
+        { label: "Machines", to: "/machines" },
+        { label: `Machine ${shortId(standaloneMachineId)}` },
+      ];
+    }
+
     return STATIC_CRUMBS[norm] ?? STATIC_CRUMBS[pathname] ?? [{ label: "Admin" }];
   }, [
     customerId,
@@ -93,6 +107,7 @@ export function AdminBreadcrumbs() {
     pathname,
     orgQuery.data?.name,
     orgQuery.isPending,
+    standaloneMachineId,
   ]);
 
   return (
