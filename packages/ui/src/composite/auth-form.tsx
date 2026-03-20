@@ -14,11 +14,15 @@ import {
 import { Input } from "@slushomat/ui/base/input";
 import { Label } from "@slushomat/ui/base/label";
 
+export type AuthFormError = { message: string; code?: string };
+
 export interface AuthFormProps {
   mode: "sign-in" | "sign-up";
   onModeToggle?: () => void;
-  onSignIn: (email: string, password: string) => Promise<{ error?: { message: string } }>;
-  onSignUp?: (email: string, password: string, name?: string) => Promise<{ error?: { message: string } }>;
+  onSignIn: (email: string, password: string) => Promise<{ error?: AuthFormError }>;
+  onSignUp?: (email: string, password: string, name?: string) => Promise<{ error?: AuthFormError }>;
+  /** Called after a failed sign-up (e.g. to show a toast with a stable `error.code`). */
+  onSignUpError?: (error: AuthFormError) => void;
   isLoading?: boolean;
   defaultEmail?: string;
 }
@@ -28,6 +32,7 @@ export function AuthForm({
   onModeToggle,
   onSignIn,
   onSignUp,
+  onSignUpError,
   isLoading = false,
   defaultEmail,
 }: AuthFormProps) {
@@ -58,6 +63,7 @@ export function AuthForm({
         : await onSignIn(email, password);
       if (result?.error) {
         setError(result.error.message);
+        if (isSignUp) onSignUpError?.(result.error);
       }
     } finally {
       setSubmitting(false);
