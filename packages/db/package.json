@@ -8,6 +8,9 @@
     "./schema": {
       "default": "./src/schema/index.ts"
     },
+    "./model-factory": {
+      "default": "./src/model-factory/index.ts"
+    },
     "./*": {
       "default": "./src/*.ts"
     }
