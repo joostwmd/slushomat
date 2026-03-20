@@ -22,8 +22,11 @@ import { useQuery } from "@tanstack/react-query";
 import {
   LayoutDashboardIcon,
   Building2Icon,
+  FactoryIcon,
+  FileTextIcon,
   MailIcon,
   PackageIcon,
+  CpuIcon,
 } from "lucide-react";
 
 export function OperatorAppSidebar() {
@@ -60,7 +63,12 @@ export function OperatorAppSidebar() {
     avatar: (user as { image?: string }).image,
   };
 
-  type OrgScopedTo = "/$orgSlug/dashboard" | "/$orgSlug/products";
+  type OrgScopedTo =
+    | "/$orgSlug/dashboard"
+    | "/$orgSlug/products"
+    | "/$orgSlug/businesses"
+    | "/$orgSlug/contracts"
+    | "/$orgSlug/machines";
 
   const NAV_ITEMS: Array<{
     title: string;
@@ -79,6 +87,24 @@ export function OperatorAppSidebar() {
       to: activeSlug ? "/$orgSlug/products" : "/organizations",
       params: activeSlug ? { orgSlug: activeSlug } : undefined,
       icon: <PackageIcon />,
+    },
+    {
+      title: "Businesses",
+      to: activeSlug ? "/$orgSlug/businesses" : "/organizations",
+      params: activeSlug ? { orgSlug: activeSlug } : undefined,
+      icon: <FactoryIcon />,
+    },
+    {
+      title: "Contracts",
+      to: activeSlug ? "/$orgSlug/contracts" : "/organizations",
+      params: activeSlug ? { orgSlug: activeSlug } : undefined,
+      icon: <FileTextIcon />,
+    },
+    {
+      title: "Machines",
+      to: activeSlug ? "/$orgSlug/machines" : "/organizations",
+      params: activeSlug ? { orgSlug: activeSlug } : undefined,
+      icon: <CpuIcon />,
     },
     { title: "Organizations", to: "/organizations", icon: <Building2Icon /> },
     { title: "Invitations", to: "/invitations", icon: <MailIcon /> },

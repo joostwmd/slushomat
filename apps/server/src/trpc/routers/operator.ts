@@ -1,5 +1,9 @@
 import { router } from "../init";
 import { operatorProcedure } from "../procedures";
+import { operatorBusinessEntityRouter } from "./operator-business-entity";
+import { operatorMachineRouter } from "./operator-machines";
+import { operatorMachineSlotRouter } from "./operator-machine-slot";
+import { operatorOperatorContractRouter } from "./operator-operator-contract";
 import { operatorProductRouter } from "./operator-products";
 
 export const operatorRouter = router({
@@ -8,4 +12,8 @@ export const operatorRouter = router({
     message: "Operator access granted",
   })),
   product: operatorProductRouter,
+  businessEntity: operatorBusinessEntityRouter,
+  operatorContract: operatorOperatorContractRouter,
+  machine: operatorMachineRouter,
+  machineSlot: operatorMachineSlotRouter,
 });

@@ -28,12 +28,16 @@ import {
   Building2Icon,
   WrenchIcon,
   PackageIcon,
+  BriefcaseIcon,
+  TruckIcon,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { title: "Users", url: "/users", icon: <UsersIcon /> },
   { title: "Customers", url: "/customers", icon: <Building2Icon /> },
+  { title: "Businesses", url: "/businesses", icon: <BriefcaseIcon /> },
   { title: "Contracts", url: "/contracts", icon: <FileTextIcon /> },
+  { title: "Deployments", url: "/deployments", icon: <TruckIcon /> },
   { title: "Machines", url: "/machines", icon: <WrenchIcon /> },
   { title: "Products", url: "/products", icon: <PackageIcon /> },
 ] as const;

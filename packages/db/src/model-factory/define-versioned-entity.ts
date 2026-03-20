@@ -69,7 +69,8 @@ export function defineVersionedEntity(config: DefineVersionedEntityConfig) {
       ...versionColumns,
       createdAt: timestamp("created_at").defaultNow().notNull(),
     },
-    (t) => [
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (t: any) => [
       index(`${versionTableName}_entity_id_idx`).on(t.entityId),
       uniqueIndex(`${versionTableName}_entity_version_uidx`).on(
         t.entityId,
@@ -107,7 +108,8 @@ export function defineVersionedEntity(config: DefineVersionedEntityConfig) {
         .$onUpdate(() => /* @__PURE__ */ new Date())
         .notNull(),
     },
-    (t) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (t: any) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const out: any[] = [];
       if ("organizationId" in t && t.organizationId) {

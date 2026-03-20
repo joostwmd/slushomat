@@ -37,7 +37,9 @@ const contractModel = defineVersionedEntity({
 });
 
 export const operatorContract = contractModel.base;
-export const operatorContractVersion = contractModel.versions;
+/** Version columns come from a spread in the factory; Drizzle omits them from inferred table types. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const operatorContractVersion: any = contractModel.versions;
 export const operatorContractChange = contractModel.changes;
 export const operatorContractBaseRelations = contractModel.baseRelations;
 export const operatorContractVersionRelations =

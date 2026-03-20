@@ -3,7 +3,12 @@ import { TRPCError } from "@trpc/server";
 import { db } from "@slushomat/db";
 import { member, organization } from "@slushomat/db/schema";
 
-export type DbClient = typeof db;
+/** DB handle or Drizzle transaction — both support `.select()` / `.insert()` / etc. */
+type DrizzleTransaction = Parameters<
+  Parameters<typeof db.transaction>[0]
+>[0];
+
+export type DbClient = typeof db | DrizzleTransaction;
 
 /**
  * Resolves `organization.id` from slug. Operator `product.*` routes must use this

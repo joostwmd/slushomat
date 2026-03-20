@@ -25,7 +25,7 @@ export interface DefineStaticEntityConfig {
 /**
  * Single-table entity with standard id, scope columns, timestamps, optional soft-delete.
  */
-export function defineStaticEntity(config: DefineStaticEntityConfig) {
+export function defineStaticEntity(config: DefineStaticEntityConfig): any {
   const { name, scope, softDelete, columns, references } = config;
 
   if (
@@ -48,44 +48,69 @@ export function defineStaticEntity(config: DefineStaticEntityConfig) {
   const orgTable = references?.organization;
   const userTable = references?.user;
 
-  const columnShape = {
-    id: text("id").primaryKey(),
-    ...(scope === "org" || scope === "org-user"
+  const orgPart =
+    scope === "org" || scope === "org-user"
       ? {
           organizationId: text("organization_id")
             .notNull()
             .references(() => orgTable.id, { onDelete: "cascade" }),
         }
-      : {}),
-    ...(scope === "user" || scope === "org-user"
+      : {};
+
+  const userPart =
+    scope === "user" || scope === "org-user"
       ? {
           userId: text("user_id")
             .notNull()
             .references(() => userTable.id, { onDelete: "cascade" }),
         }
-      : {}),
+      : {};
+
+  const core = {
+    id: text("id").primaryKey(),
+    ...orgPart,
+    ...userPart,
     ...columns,
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
-    ...(softDelete ? { deletedAt: timestamp("deleted_at") } : {}),
   };
+
+  const buildIndexes = (t: {
+    organizationId?: unknown;
+    userId?: unknown;
+  }) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const out: any[] = [];
+    if ("organizationId" in t && t.organizationId) {
+      out.push(index(`${name}_organization_id_idx`).on(t.organizationId as never));
+    }
+    if ("userId" in t && t.userId) {
+      out.push(index(`${name}_user_id_idx`).on(t.userId as never));
+    }
+    return out;
+  };
+
+  if (softDelete) {
+    return pgTable(
+      name,
+      // `columns` is Record<string, any> — Drizzle cannot infer a single overload; runtime is correct.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      { ...core, deletedAt: timestamp("deleted_at") } as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ((t: any) => buildIndexes(t)) as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ) as any;
+  }
 
   return pgTable(
     name,
-    columnShape,
-    (t) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const out: any[] = [];
-      if ("organizationId" in t && t.organizationId) {
-        out.push(index(`${name}_organization_id_idx`).on(t.organizationId));
-      }
-      if ("userId" in t && t.userId) {
-        out.push(index(`${name}_user_id_idx`).on(t.userId));
-      }
-      return out;
-    },
-  );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    core as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ((t: any) => buildIndexes(t)) as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ) as any;
 }
