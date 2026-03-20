@@ -15,6 +15,7 @@ import { Route as AdminIndexRouteImport } from './routes/_admin/index'
 import { Route as AdminUsersRouteImport } from './routes/_admin/users'
 import { Route as AdminProductsRouteImport } from './routes/_admin/products'
 import { Route as AdminMachinesRouteImport } from './routes/_admin/machines'
+import { Route as AdminDeploymentsRouteImport } from './routes/_admin/deployments'
 import { Route as AdminDashboardRouteImport } from './routes/_admin/dashboard'
 import { Route as AdminCreateCustomerRouteImport } from './routes/_admin/create-customer'
 import { Route as AdminContractsRouteImport } from './routes/_admin/contracts'
@@ -50,6 +51,11 @@ const AdminProductsRoute = AdminProductsRouteImport.update({
 const AdminMachinesRoute = AdminMachinesRouteImport.update({
   id: '/machines',
   path: '/machines',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminDeploymentsRoute = AdminDeploymentsRouteImport.update({
+  id: '/deployments',
+  path: '/deployments',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminDashboardRoute = AdminDashboardRouteImport.update({
@@ -97,6 +103,7 @@ export interface FileRoutesByFullPath {
   '/contracts': typeof AdminContractsRoute
   '/create-customer': typeof AdminCreateCustomerRoute
   '/dashboard': typeof AdminDashboardRoute
+  '/deployments': typeof AdminDeploymentsRoute
   '/machines': typeof AdminMachinesRoute
   '/products': typeof AdminProductsRoute
   '/users': typeof AdminUsersRoute
@@ -109,6 +116,7 @@ export interface FileRoutesByTo {
   '/contracts': typeof AdminContractsRoute
   '/create-customer': typeof AdminCreateCustomerRoute
   '/dashboard': typeof AdminDashboardRoute
+  '/deployments': typeof AdminDeploymentsRoute
   '/machines': typeof AdminMachinesRoute
   '/products': typeof AdminProductsRoute
   '/users': typeof AdminUsersRoute
@@ -125,6 +133,7 @@ export interface FileRoutesById {
   '/_admin/contracts': typeof AdminContractsRoute
   '/_admin/create-customer': typeof AdminCreateCustomerRoute
   '/_admin/dashboard': typeof AdminDashboardRoute
+  '/_admin/deployments': typeof AdminDeploymentsRoute
   '/_admin/machines': typeof AdminMachinesRoute
   '/_admin/products': typeof AdminProductsRoute
   '/_admin/users': typeof AdminUsersRoute
@@ -142,6 +151,7 @@ export interface FileRouteTypes {
     | '/contracts'
     | '/create-customer'
     | '/dashboard'
+    | '/deployments'
     | '/machines'
     | '/products'
     | '/users'
@@ -154,6 +164,7 @@ export interface FileRouteTypes {
     | '/contracts'
     | '/create-customer'
     | '/dashboard'
+    | '/deployments'
     | '/machines'
     | '/products'
     | '/users'
@@ -169,6 +180,7 @@ export interface FileRouteTypes {
     | '/_admin/contracts'
     | '/_admin/create-customer'
     | '/_admin/dashboard'
+    | '/_admin/deployments'
     | '/_admin/machines'
     | '/_admin/products'
     | '/_admin/users'
@@ -225,6 +237,13 @@ declare module '@tanstack/react-router' {
       path: '/machines'
       fullPath: '/machines'
       preLoaderRoute: typeof AdminMachinesRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/_admin/deployments': {
+      id: '/_admin/deployments'
+      path: '/deployments'
+      fullPath: '/deployments'
+      preLoaderRoute: typeof AdminDeploymentsRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/_admin/dashboard': {
@@ -312,6 +331,7 @@ interface AdminRouteRouteChildren {
   AdminContractsRoute: typeof AdminContractsRoute
   AdminCreateCustomerRoute: typeof AdminCreateCustomerRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
+  AdminDeploymentsRoute: typeof AdminDeploymentsRoute
   AdminMachinesRoute: typeof AdminMachinesRoute
   AdminProductsRoute: typeof AdminProductsRoute
   AdminUsersRoute: typeof AdminUsersRoute
@@ -323,6 +343,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminContractsRoute: AdminContractsRoute,
   AdminCreateCustomerRoute: AdminCreateCustomerRoute,
   AdminDashboardRoute: AdminDashboardRoute,
+  AdminDeploymentsRoute: AdminDeploymentsRoute,
   AdminMachinesRoute: AdminMachinesRoute,
   AdminProductsRoute: AdminProductsRoute,
   AdminUsersRoute: AdminUsersRoute,

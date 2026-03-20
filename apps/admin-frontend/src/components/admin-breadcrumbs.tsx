@@ -24,6 +24,7 @@ const STATIC_CRUMBS: Record<string, Crumb[]> = {
   "/customers": [DASH, { label: "Customers" }],
   "/customers/": [DASH, { label: "Customers" }],
   "/contracts": [DASH, { label: "Contracts" }],
+  "/deployments": [DASH, { label: "Deployments" }],
   "/machines": [DASH, { label: "Machines" }],
   "/products": [DASH, { label: "Template products" }],
   "/create-customer": [DASH, { label: "Customers", to: "/customers" }, { label: "Create customer" }],
