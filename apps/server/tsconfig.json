@@ -1,5 +1,6 @@
 {
   "extends": "@slushomat/config/tsconfig.base.json",
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
   "compilerOptions": {
     "composite": true,
     "outDir": "dist",

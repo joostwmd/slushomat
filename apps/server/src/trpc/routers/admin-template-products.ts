@@ -1,55 +1,23 @@
 import { randomUUID } from "node:crypto";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { db } from "@slushomat/db";
+import { productImage, templateProduct } from "@slushomat/db/schema";
 import {
-  templateProduct,
-  templateProductImage,
-} from "@slushomat/db/schema";
-import { env } from "@slushomat/env/server";
-import {
-  createSupabaseServiceClient,
-  SupabaseStorageService,
-} from "@slushomat/supabase";
+  deleteProductImageIfUnreferenced,
+  extForContentType,
+  getProductImageStorage,
+  pathPrefixTemplateProduct,
+  TEMPLATE_PRODUCT_IMAGE_MAX_BYTES,
+  ALLOWED_PRODUCT_IMAGE_TYPES,
+} from "../../lib/product-image";
 import { router } from "../init";
 import { adminProcedure } from "../procedures";
 
+export { TEMPLATE_PRODUCT_IMAGE_MAX_BYTES } from "../../lib/product-image";
+
 const taxRateSchema = z.union([z.literal(7), z.literal(19)]);
-
-/** Matches admin UI: JPEG / PNG only, max 5 MiB. */
-export const TEMPLATE_PRODUCT_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
-
-const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png"]);
-
-function extForContentType(ct: string): string {
-  const map: Record<string, string> = {
-    "image/jpeg": "jpg",
-    "image/png": "png",
-  };
-  return map[ct] ?? "jpg";
-}
-
-function getStorage(): SupabaseStorageService {
-  const url = env.SUPABASE_URL;
-  const key = env.SUPABASE_SERVICE_ROLE_KEY;
-  const bucket =
-    env.SUPABASE_STORAGE_BUCKET_TEMPLATE_PRODUCTS ?? "template-products";
-  if (!url || !key) {
-    throw new TRPCError({
-      code: "PRECONDITION_FAILED",
-      message:
-        "Supabase Storage is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (and optionally SUPABASE_STORAGE_BUCKET_TEMPLATE_PRODUCTS).",
-    });
-  }
-  const client = createSupabaseServiceClient(url, key);
-  return new SupabaseStorageService(client, bucket);
-}
-
-/** Path prefix inside the bucket: `template-products/{productId}/`. */
-function pathPrefixForProduct(templateProductId: string): string {
-  return `template-products/${templateProductId}/`;
-}
 
 const listItemSchema = z.object({
   id: z.string(),
@@ -66,16 +34,15 @@ const templateProductRowSchema = z.object({
   name: z.string(),
   priceInCents: z.number().int(),
   taxRatePercent: taxRateSchema,
-  organizationId: z.string().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
 
 export const templateProductAdminRouter = router({
   list: adminProcedure.output(z.array(listItemSchema)).query(async ({ ctx }) => {
-    let storage: SupabaseStorageService | null = null;
+    let storage: ReturnType<typeof getProductImageStorage> | null = null;
     try {
-      storage = getStorage();
+      storage = getProductImageStorage();
     } catch {
       storage = null;
     }
@@ -88,25 +55,20 @@ export const templateProductAdminRouter = router({
         taxRatePercent: templateProduct.taxRatePercent,
         createdAt: templateProduct.createdAt,
         updatedAt: templateProduct.updatedAt,
-        imagePath: templateProductImage.objectPath,
-        imageBucket: templateProductImage.bucket,
+        imagePath: productImage.objectPath,
+        imageBucket: productImage.bucket,
       })
       .from(templateProduct)
       .leftJoin(
-        templateProductImage,
-        eq(templateProduct.id, templateProductImage.templateProductId),
+        productImage,
+        eq(templateProduct.productImageId, productImage.id),
       )
-      .where(isNull(templateProduct.organizationId))
       .orderBy(desc(templateProduct.createdAt));
 
     const out: z.infer<typeof listItemSchema>[] = [];
     for (const r of rows) {
       let imageUrl: string | null = null;
-      if (
-        storage &&
-        r.imagePath &&
-        r.imageBucket === storage.bucketName
-      ) {
+      if (storage && r.imagePath && r.imageBucket === storage.bucketName) {
         try {
           imageUrl = await storage.createSignedDownloadUrl(r.imagePath, 3600);
         } catch {
@@ -145,14 +107,12 @@ export const templateProductAdminRouter = router({
           name,
           priceInCents: input.priceInCents,
           taxRatePercent: input.taxRatePercent,
-          organizationId: null,
         })
         .returning({
           id: templateProduct.id,
           name: templateProduct.name,
           priceInCents: templateProduct.priceInCents,
           taxRatePercent: templateProduct.taxRatePercent,
-          organizationId: templateProduct.organizationId,
           createdAt: templateProduct.createdAt,
           updatedAt: templateProduct.updatedAt,
         });
@@ -179,7 +139,7 @@ export const templateProductAdminRouter = router({
     )
     .output(templateProductRowSchema)
     .mutation(async ({ ctx, input }) => {
-      await requireGlobalTemplate(ctx, input.id);
+      await requireTemplateProduct(ctx, input.id);
       const name = input.name.trim();
       const [row] = await ctx.db
         .update(templateProduct)
@@ -194,7 +154,6 @@ export const templateProductAdminRouter = router({
           name: templateProduct.name,
           priceInCents: templateProduct.priceInCents,
           taxRatePercent: templateProduct.taxRatePercent,
-          organizationId: templateProduct.organizationId,
           createdAt: templateProduct.createdAt,
           updatedAt: templateProduct.updatedAt,
         });
@@ -214,30 +173,24 @@ export const templateProductAdminRouter = router({
     .input(z.object({ id: z.string().min(1) }))
     .output(z.object({ ok: z.literal(true) }))
     .mutation(async ({ ctx, input }) => {
-      await requireGlobalTemplate(ctx, input.id);
-      const storage = getStorage();
-      const [img] = await ctx.db
-        .select({
-          objectPath: templateProductImage.objectPath,
-          bucket: templateProductImage.bucket,
-        })
-        .from(templateProductImage)
-        .where(eq(templateProductImage.templateProductId, input.id))
+      await requireTemplateProduct(ctx, input.id);
+      const storage = getProductImageStorage();
+      const [prev] = await ctx.db
+        .select({ productImageId: templateProduct.productImageId })
+        .from(templateProduct)
+        .where(eq(templateProduct.id, input.id))
         .limit(1);
 
       await ctx.db
         .delete(templateProduct)
         .where(eq(templateProduct.id, input.id));
 
-      if (
-        img?.objectPath &&
-        img.bucket === storage.bucketName
-      ) {
-        try {
-          await storage.removeObject(img.objectPath);
-        } catch {
-          /* best-effort */
-        }
+      if (prev?.productImageId) {
+        await deleteProductImageIfUnreferenced(
+          ctx.db,
+          storage,
+          prev.productImageId,
+        );
       }
       return { ok: true as const };
     }),
@@ -264,17 +217,17 @@ export const templateProductAdminRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await requireGlobalTemplate(ctx, input.templateProductId);
+      await requireTemplateProduct(ctx, input.templateProductId);
       const ct = input.contentType.toLowerCase().split(";")[0]!.trim();
-      if (!ALLOWED_IMAGE_TYPES.has(ct)) {
+      if (!ALLOWED_PRODUCT_IMAGE_TYPES.has(ct)) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Only JPEG and PNG images are allowed.",
         });
       }
-      const storage = getStorage();
+      const storage = getProductImageStorage();
       const safeExt = extForContentType(ct);
-      const objectPath = `${pathPrefixForProduct(input.templateProductId)}${randomUUID()}.${safeExt}`;
+      const objectPath = `${pathPrefixTemplateProduct(input.templateProductId)}${randomUUID()}.${safeExt}`;
       const { path, token, signedUrl } =
         await storage.createSignedUploadUrl(objectPath, { upsert: true });
       return {
@@ -301,9 +254,9 @@ export const templateProductAdminRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await requireGlobalTemplate(ctx, input.templateProductId);
-      const storage = getStorage();
-      const prefix = pathPrefixForProduct(input.templateProductId);
+      await requireTemplateProduct(ctx, input.templateProductId);
+      const storage = getProductImageStorage();
+      const prefix = pathPrefixTemplateProduct(input.templateProductId);
       if (
         !input.objectPath.startsWith(prefix) ||
         input.objectPath.includes("..")
@@ -314,45 +267,57 @@ export const templateProductAdminRouter = router({
         });
       }
 
-      const [existing] = await ctx.db
-        .select()
-        .from(templateProductImage)
-        .where(
-          eq(templateProductImage.templateProductId, input.templateProductId),
-        )
+      const [tpl] = await ctx.db
+        .select({ productImageId: templateProduct.productImageId })
+        .from(templateProduct)
+        .where(eq(templateProduct.id, input.templateProductId))
         .limit(1);
 
-      if (
-        existing &&
-        existing.objectPath !== input.objectPath &&
-        existing.bucket === storage.bucketName
-      ) {
-        try {
-          await storage.removeObject(existing.objectPath);
-        } catch {
-          /* ignore */
+      if (tpl?.productImageId) {
+        const [currentImg] = await ctx.db
+          .select()
+          .from(productImage)
+          .where(eq(productImage.id, tpl.productImageId))
+          .limit(1);
+        if (
+          currentImg &&
+          currentImg.objectPath === input.objectPath &&
+          currentImg.bucket === storage.bucketName
+        ) {
+          return {
+            id: currentImg.id,
+            templateProductId: input.templateProductId,
+            bucket: currentImg.bucket,
+            objectPath: currentImg.objectPath,
+          };
         }
       }
 
+      const previousImageId = tpl?.productImageId ?? null;
+      const newImageId = randomUUID();
       const bucket = storage.bucketName;
-      const imageId = existing?.id ?? randomUUID();
 
-      if (existing) {
-        await ctx.db
-          .update(templateProductImage)
-          .set({ bucket, objectPath: input.objectPath })
-          .where(eq(templateProductImage.templateProductId, input.templateProductId));
-      } else {
-        await ctx.db.insert(templateProductImage).values({
-          id: imageId,
-          templateProductId: input.templateProductId,
-          bucket,
-          objectPath: input.objectPath,
-        });
+      await ctx.db.insert(productImage).values({
+        id: newImageId,
+        bucket,
+        objectPath: input.objectPath,
+      });
+
+      await ctx.db
+        .update(templateProduct)
+        .set({ productImageId: newImageId })
+        .where(eq(templateProduct.id, input.templateProductId));
+
+      if (previousImageId) {
+        await deleteProductImageIfUnreferenced(
+          ctx.db,
+          storage,
+          previousImageId,
+        );
       }
 
       return {
-        id: imageId,
+        id: newImageId,
         templateProductId: input.templateProductId,
         bucket,
         objectPath: input.objectPath,
@@ -360,19 +325,14 @@ export const templateProductAdminRouter = router({
     }),
 });
 
-async function requireGlobalTemplate(
+async function requireTemplateProduct(
   ctx: { db: typeof db },
   templateProductId: string,
 ) {
   const [row] = await ctx.db
     .select({ id: templateProduct.id })
     .from(templateProduct)
-    .where(
-      and(
-        eq(templateProduct.id, templateProductId),
-        isNull(templateProduct.organizationId),
-      ),
-    )
+    .where(eq(templateProduct.id, templateProductId))
     .limit(1);
   if (!row) {
     throw new TRPCError({
