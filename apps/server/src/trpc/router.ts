@@ -3,6 +3,7 @@ import {
   protectedProcedure,
   publicProcedureWithErrorMapper as publicProcedure,
 } from "./procedures";
+import { accountRouter } from "./routers/account";
 import { adminRouter } from "./routers/admin";
 import { operatorRouter } from "./routers/operator";
 
@@ -12,6 +13,7 @@ export const appRouter = router({
     message: "This is private",
     user: ctx.session!.user,
   })),
+  account: accountRouter,
   admin: adminRouter,
   operator: operatorRouter,
 });

@@ -20,13 +20,19 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@slushomat/ui/base/sidebar"
-import { ChevronsUpDownIcon, LogOutIcon, UserXIcon } from "lucide-react"
+import {
+  ChevronsUpDownIcon,
+  KeyRoundIcon,
+  LogOutIcon,
+  UserXIcon,
+} from "lucide-react"
 
 export function NavUser({
   user,
   onSignOut,
   impersonated = false,
   onStopImpersonating,
+  onChangePassword,
 }: {
   user: {
     name: string
@@ -36,6 +42,7 @@ export function NavUser({
   onSignOut: () => void | Promise<void>
   impersonated?: boolean
   onStopImpersonating?: () => void | Promise<void>
+  onChangePassword?: () => void
 }) {
   const { isMobile } = useSidebar()
   const handleAction =
@@ -83,6 +90,19 @@ export function NavUser({
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
+            {onChangePassword && !impersonated ? (
+              <DropdownMenuItem
+                onSelect={() => {
+                  onChangePassword()
+                }}
+              >
+                <KeyRoundIcon className="size-4" />
+                Change password
+              </DropdownMenuItem>
+            ) : null}
+            {onChangePassword && !impersonated ? (
+              <DropdownMenuSeparator />
+            ) : null}
             <DropdownMenuItem onSelect={() => handleAction()}>
               <ActionIcon className="size-4" />
               {actionLabel}
