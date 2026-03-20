@@ -3,12 +3,16 @@ import { z } from "zod";
 import { auth } from "@slushomat/auth";
 import { router } from "../init";
 import { adminProcedure } from "../procedures";
+import {
+  machineAdminRouter,
+  machineVersionAdminRouter,
+} from "./admin-machines";
 
 const createOrganizationInput = z.object({
   name: z.string().min(1, "Name is required"),
   slug: z.string().min(1, "Slug is required"),
   logo: z.string().optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
   userId: z.string().min(1, "Valid user ID required"),
 });
 
@@ -22,6 +26,8 @@ const createOrganizationOutput = z.object({
 });
 
 export const adminRouter = router({
+  machineVersion: machineVersionAdminRouter,
+  machine: machineAdminRouter,
   me: adminProcedure.query(({ ctx }) => ({
     user: ctx.user,
     message: "Admin access granted",
