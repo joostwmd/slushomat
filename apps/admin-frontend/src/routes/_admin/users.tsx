@@ -1,16 +1,28 @@
 /**
- * Admin Users page — lists users with "Open as user" impersonation handoff.
+ * Admin Users page — lists users with "Open as user" impersonation handoff
+ * and optional password reset (tRPC generateUserPassword).
  * Flow: impersonateUser → oneTimeToken.generate → open new tab → stopImpersonating.
  */
 import { authClient } from "@slushomat/auth/client";
 import { env } from "@slushomat/env/web";
 import { Button } from "@slushomat/ui/base/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@slushomat/ui/base/dialog";
+import { Label } from "@slushomat/ui/base/label";
 import { Skeleton } from "@slushomat/ui/base/skeleton";
-import { useQuery } from "@tanstack/react-query";
+import { cn } from "@slushomat/ui/lib/utils";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Loader2Icon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { trpc } from "@/utils/trpc";
 
 export const Route = createFileRoute("/_admin/users")({
   component: UsersPage,
@@ -19,9 +31,21 @@ export const Route = createFileRoute("/_admin/users")({
 const USERS_QUERY_KEY = ["admin", "users"] as const;
 const PAGE_SIZE = 50;
 
+const textareaClassName = cn(
+  "flex min-h-[72px] w-full min-w-0 rounded-none border border-input bg-transparent px-2.5 py-1.5 text-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 md:text-xs dark:bg-input/30 dark:disabled:bg-input/80",
+);
+
+function errMessage(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  return "Something went wrong";
+}
+
+type RowBusy = { userId: string; action: "open" | "password" } | null;
+
 function UsersPage() {
   const [page, setPage] = useState(0);
-  const [loadingUserId, setLoadingUserId] = useState<string | null>(null);
+  const [rowBusy, setRowBusy] = useState<RowBusy>(null);
+  const [revealedPassword, setRevealedPassword] = useState<string | null>(null);
 
   const usersQuery = useQuery({
     queryKey: [...USERS_QUERY_KEY, page],
@@ -39,8 +63,13 @@ function UsersPage() {
     },
   });
 
+  const generatePasswordMutation = useMutation({
+    ...trpc.admin.generateUserPassword.mutationOptions(),
+    onError: (e) => toast.error(errMessage(e)),
+  });
+
   const handleOpenAsUser = async (userId: string) => {
-    setLoadingUserId(userId);
+    setRowBusy({ userId, action: "open" });
     try {
       await authClient.admin.impersonateUser({ userId });
       const genRes = await authClient.oneTimeToken.generate();
@@ -54,11 +83,27 @@ function UsersPage() {
         window.location.origin.replace("admin", "operator");
 
       window.open(`${operatorUrl}/auth/handoff?token=${token}`, "_blank");
-    } catch (err) {
+    } catch {
       toast.error("Could not open operator dashboard. Please try again.");
     } finally {
-      setLoadingUserId(null);
+      setRowBusy(null);
     }
+  };
+
+  const handleRequestNewPassword = (userId: string) => {
+    const ok = window.confirm(
+      "Generate a new password for this user? Their current password will stop working immediately.",
+    );
+    if (!ok) return;
+
+    setRowBusy({ userId, action: "password" });
+    generatePasswordMutation.mutate(
+      { userId },
+      {
+        onSuccess: (data) => setRevealedPassword(data.password),
+        onSettled: () => setRowBusy(null),
+      },
+    );
   };
 
   const users = usersQuery.data?.users ?? [];
@@ -68,6 +113,66 @@ function UsersPage() {
   return (
     <div className="container mx-auto max-w-4xl px-4 py-8">
       <h1 className="mb-4 text-xl font-medium">Users</h1>
+
+      <Dialog
+        open={revealedPassword !== null}
+        onOpenChange={(open) => {
+          if (!open) setRevealedPassword(null);
+        }}
+      >
+        <DialogContent showCloseButton>
+          <DialogHeader>
+            <DialogTitle>New password</DialogTitle>
+            <DialogDescription>
+              Copy this password now. It will not be shown again after you close
+              this dialog.
+            </DialogDescription>
+          </DialogHeader>
+          {revealedPassword ? (
+            <div
+              className="rounded-none border border-amber-500/40 bg-amber-500/5 p-3"
+              role="region"
+              aria-label="Generated password — copy now"
+            >
+              <Label
+                htmlFor="admin-user-password-once"
+                className="text-xs text-muted-foreground"
+              >
+                Password
+              </Label>
+              <textarea
+                id="admin-user-password-once"
+                readOnly
+                className={cn(textareaClassName, "mt-1 font-mono")}
+                value={revealedPassword}
+                rows={3}
+              />
+            </div>
+          ) : null}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!revealedPassword}
+              onClick={async () => {
+                if (!revealedPassword) return;
+                await navigator.clipboard.writeText(revealedPassword);
+                toast.success("Password copied");
+              }}
+            >
+              Copy password
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setRevealedPassword(null)}
+            >
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {isError && (
         <p role="alert" className="mb-4 text-sm text-destructive">
@@ -103,7 +208,10 @@ function UsersPage() {
                   role?: string;
                   createdAt?: Date | string;
                 };
-                const isBusy = loadingUserId === user.id;
+                const isThisRowBusy = rowBusy?.userId === user.id;
+                const openLoading = isThisRowBusy && rowBusy?.action === "open";
+                const passwordLoading =
+                  isThisRowBusy && rowBusy?.action === "password";
                 return (
                   <tr
                     key={user.id}
@@ -118,25 +226,46 @@ function UsersPage() {
                         : "—"}
                     </td>
                     <td className="px-4 py-2 text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={isBusy}
-                        aria-busy={isBusy}
-                        onClick={() => handleOpenAsUser(user.id)}
-                      >
-                        {isBusy ? (
-                          <>
-                            <Loader2Icon
-                              className="size-3.5 animate-spin"
-                              aria-hidden
-                            />
-                            <span className="ml-1.5">Opening...</span>
-                          </>
-                        ) : (
-                          "Open as user"
-                        )}
-                      </Button>
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={isThisRowBusy}
+                          aria-busy={openLoading}
+                          onClick={() => handleOpenAsUser(user.id)}
+                        >
+                          {openLoading ? (
+                            <>
+                              <Loader2Icon
+                                className="size-3.5 animate-spin"
+                                aria-hidden
+                              />
+                              <span className="ml-1.5">Opening...</span>
+                            </>
+                          ) : (
+                            "Open as user"
+                          )}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={isThisRowBusy}
+                          aria-busy={passwordLoading}
+                          onClick={() => handleRequestNewPassword(user.id)}
+                        >
+                          {passwordLoading ? (
+                            <>
+                              <Loader2Icon
+                                className="size-3.5 animate-spin"
+                                aria-hidden
+                              />
+                              <span className="ml-1.5">Working...</span>
+                            </>
+                          ) : (
+                            "New password"
+                          )}
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 );
