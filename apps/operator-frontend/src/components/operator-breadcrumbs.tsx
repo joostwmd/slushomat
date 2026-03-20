@@ -24,6 +24,12 @@ function crumbsForPath(pathname: string): Crumb[] {
       { label: "Dashboard" },
     ];
   }
+  if (/^\/[^/]+\/products$/.test(pathname)) {
+    return [
+      { label: "Organizations", to: "/organizations" },
+      { label: "Products" },
+    ];
+  }
   return [{ label: "Operator" }];
 }
 

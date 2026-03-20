@@ -19,7 +19,12 @@ import { NavUser } from "@slushomat/ui/base/nav-user";
 import { ChangePasswordDialog } from "@/components/change-password-dialog";
 import { Link, useLocation } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { LayoutDashboardIcon, Building2Icon, MailIcon } from "lucide-react";
+import {
+  LayoutDashboardIcon,
+  Building2Icon,
+  MailIcon,
+  PackageIcon,
+} from "lucide-react";
 
 export function OperatorAppSidebar() {
   const location = useLocation();
@@ -55,9 +60,11 @@ export function OperatorAppSidebar() {
     avatar: (user as { image?: string }).image,
   };
 
+  type OrgScopedTo = "/$orgSlug/dashboard" | "/$orgSlug/products";
+
   const NAV_ITEMS: Array<{
     title: string;
-    to: "/organizations" | "/invitations" | "/$orgSlug/dashboard";
+    to: "/organizations" | "/invitations" | OrgScopedTo;
     params?: { orgSlug: string };
     icon: React.ReactNode;
   }> = [
@@ -67,9 +74,22 @@ export function OperatorAppSidebar() {
       params: activeSlug ? { orgSlug: activeSlug } : undefined,
       icon: <LayoutDashboardIcon />,
     },
+    {
+      title: "Products",
+      to: activeSlug ? "/$orgSlug/products" : "/organizations",
+      params: activeSlug ? { orgSlug: activeSlug } : undefined,
+      icon: <PackageIcon />,
+    },
     { title: "Organizations", to: "/organizations", icon: <Building2Icon /> },
     { title: "Invitations", to: "/invitations", icon: <MailIcon /> },
   ];
+
+  const resolveNavPath = (item: (typeof NAV_ITEMS)[number]): string => {
+    if (item.params) {
+      return `/${item.params.orgSlug}${item.to.replace(/^\/\$orgSlug/, "")}`;
+    }
+    return item.to;
+  };
 
   const homeLink =
     activeSlug != null && activeSlug !== "" ? (
@@ -112,12 +132,10 @@ export function OperatorAppSidebar() {
           <SidebarGroup>
             <SidebarMenu>
               {NAV_ITEMS.map((item) => {
-                const path = item.params
-                  ? `/${item.params.orgSlug}/dashboard`
-                  : item.to;
+                const path = resolveNavPath(item);
                 const isActive =
                   location.pathname === path ||
-                  (path !== "/" && location.pathname.startsWith(path));
+                  location.pathname.startsWith(`${path}/`);
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton

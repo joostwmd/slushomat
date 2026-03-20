@@ -18,6 +18,7 @@ import { Route as ProtectedOrganizationsRouteImport } from './routes/_protected/
 import { Route as ProtectedInvitationsRouteImport } from './routes/_protected/invitations'
 import { Route as ProtectedOrgSlugRouteRouteImport } from './routes/_protected/$orgSlug/route'
 import { Route as ProtectedOrgSlugIndexRouteImport } from './routes/_protected/$orgSlug/index'
+import { Route as ProtectedOrgSlugProductsRouteImport } from './routes/_protected/$orgSlug/products'
 import { Route as ProtectedOrgSlugDashboardRouteImport } from './routes/_protected/$orgSlug/dashboard'
 
 const SignInRoute = SignInRouteImport.update({
@@ -64,6 +65,12 @@ const ProtectedOrgSlugIndexRoute = ProtectedOrgSlugIndexRouteImport.update({
   path: '/',
   getParentRoute: () => ProtectedOrgSlugRouteRoute,
 } as any)
+const ProtectedOrgSlugProductsRoute =
+  ProtectedOrgSlugProductsRouteImport.update({
+    id: '/products',
+    path: '/products',
+    getParentRoute: () => ProtectedOrgSlugRouteRoute,
+  } as any)
 const ProtectedOrgSlugDashboardRoute =
   ProtectedOrgSlugDashboardRouteImport.update({
     id: '/dashboard',
@@ -80,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/organizations': typeof ProtectedOrganizationsRoute
   '/auth/handoff': typeof AuthHandoffRoute
   '/$orgSlug/dashboard': typeof ProtectedOrgSlugDashboardRoute
+  '/$orgSlug/products': typeof ProtectedOrgSlugProductsRoute
   '/$orgSlug/': typeof ProtectedOrgSlugIndexRoute
 }
 export interface FileRoutesByTo {
@@ -90,6 +98,7 @@ export interface FileRoutesByTo {
   '/auth/handoff': typeof AuthHandoffRoute
   '/': typeof ProtectedIndexRoute
   '/$orgSlug/dashboard': typeof ProtectedOrgSlugDashboardRoute
+  '/$orgSlug/products': typeof ProtectedOrgSlugProductsRoute
   '/$orgSlug': typeof ProtectedOrgSlugIndexRoute
 }
 export interface FileRoutesById {
@@ -103,6 +112,7 @@ export interface FileRoutesById {
   '/auth/handoff': typeof AuthHandoffRoute
   '/_protected/': typeof ProtectedIndexRoute
   '/_protected/$orgSlug/dashboard': typeof ProtectedOrgSlugDashboardRoute
+  '/_protected/$orgSlug/products': typeof ProtectedOrgSlugProductsRoute
   '/_protected/$orgSlug/': typeof ProtectedOrgSlugIndexRoute
 }
 export interface FileRouteTypes {
@@ -116,6 +126,7 @@ export interface FileRouteTypes {
     | '/organizations'
     | '/auth/handoff'
     | '/$orgSlug/dashboard'
+    | '/$orgSlug/products'
     | '/$orgSlug/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -126,6 +137,7 @@ export interface FileRouteTypes {
     | '/auth/handoff'
     | '/'
     | '/$orgSlug/dashboard'
+    | '/$orgSlug/products'
     | '/$orgSlug'
   id:
     | '__root__'
@@ -138,6 +150,7 @@ export interface FileRouteTypes {
     | '/auth/handoff'
     | '/_protected/'
     | '/_protected/$orgSlug/dashboard'
+    | '/_protected/$orgSlug/products'
     | '/_protected/$orgSlug/'
   fileRoutesById: FileRoutesById
 }
@@ -212,6 +225,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedOrgSlugIndexRouteImport
       parentRoute: typeof ProtectedOrgSlugRouteRoute
     }
+    '/_protected/$orgSlug/products': {
+      id: '/_protected/$orgSlug/products'
+      path: '/products'
+      fullPath: '/$orgSlug/products'
+      preLoaderRoute: typeof ProtectedOrgSlugProductsRouteImport
+      parentRoute: typeof ProtectedOrgSlugRouteRoute
+    }
     '/_protected/$orgSlug/dashboard': {
       id: '/_protected/$orgSlug/dashboard'
       path: '/dashboard'
@@ -224,11 +244,13 @@ declare module '@tanstack/react-router' {
 
 interface ProtectedOrgSlugRouteRouteChildren {
   ProtectedOrgSlugDashboardRoute: typeof ProtectedOrgSlugDashboardRoute
+  ProtectedOrgSlugProductsRoute: typeof ProtectedOrgSlugProductsRoute
   ProtectedOrgSlugIndexRoute: typeof ProtectedOrgSlugIndexRoute
 }
 
 const ProtectedOrgSlugRouteRouteChildren: ProtectedOrgSlugRouteRouteChildren = {
   ProtectedOrgSlugDashboardRoute: ProtectedOrgSlugDashboardRoute,
+  ProtectedOrgSlugProductsRoute: ProtectedOrgSlugProductsRoute,
   ProtectedOrgSlugIndexRoute: ProtectedOrgSlugIndexRoute,
 }
 
