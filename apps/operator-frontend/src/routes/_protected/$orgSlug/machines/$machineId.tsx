@@ -74,7 +74,6 @@ function OperatorMachineDetailPage() {
   const [purchaseFilters, setPurchaseFilters] = useState<{
     dateFrom?: Date;
     dateTo?: Date;
-    businessEntityId?: string;
   }>({});
 
   const [orgDisplayNameDraft, setOrgDisplayNameDraft] = useState("");
@@ -101,7 +100,6 @@ function OperatorMachineDetailPage() {
       machineId,
       startDate: purchaseFilters.dateFrom,
       endDate: purchaseFilters.dateTo,
-      businessEntityId: purchaseFilters.businessEntityId,
       limit: 100,
     }),
     enabled: machineQuery.isSuccess,
@@ -184,15 +182,6 @@ function OperatorMachineDetailPage() {
     );
     return e?.name ?? null;
   }, [contract, entitiesQuery.data]);
-
-  const entityOptions = useMemo(
-    () =>
-      (entitiesQuery.data ?? []).map((e) => ({
-        id: e.id,
-        label: e.name,
-      })),
-    [entitiesQuery.data],
-  );
 
   const purchaseRows = useMemo(() => {
     const data = purchasesQuery.data ?? [];
@@ -346,7 +335,23 @@ function OperatorMachineDetailPage() {
       </section>
 
       <section className="mb-10">
-        <h2 className="mb-3 text-sm font-medium">Purchases</h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-medium">Purchases</h2>
+          <Link
+            to="/$orgSlug/machines/$machineId/purchases"
+            params={{ orgSlug, machineId }}
+            className={cn(
+              buttonVariants({ variant: "outline", size: "sm" }),
+              "rounded-none",
+            )}
+          >
+            Charts & full purchase log →
+          </Link>
+        </div>
+        <p className="mb-4 text-xs text-muted-foreground">
+          Quick preview (latest 100). Open the link above for analytics, export,
+          and date filters.
+        </p>
         <PurchasesTable
           data={purchaseRows}
           isLoading={purchasesQuery.isPending}
@@ -354,8 +359,7 @@ function OperatorMachineDetailPage() {
           onFiltersChange={setPurchaseFilters}
           onExportCsv={handleExportPurchases}
           showMachineColumn={false}
-          showEntityColumn
-          entityOptions={entityOptions}
+          showEntityColumn={false}
         />
       </section>
 

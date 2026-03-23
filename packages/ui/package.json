@@ -9,6 +9,7 @@
     "./base/*": "./src/base/*.tsx",
     "./composite/*": "./src/composite/*.tsx",
     "./composite/purchases-export": "./src/composite/purchases-export.ts",
+    "./composite/analytics-mock-data": "./src/composite/analytics-mock-data.ts",
     "./components/*": "./src/base/*.tsx",
     "./hooks/*": "./src/hooks/*.ts",
     "./postcss.config": "./postcss.config.mjs"

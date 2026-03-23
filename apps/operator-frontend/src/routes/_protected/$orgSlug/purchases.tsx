@@ -7,6 +7,7 @@ import {
 } from "@slushomat/ui/base/card";
 import { exportPurchasesToZip } from "@slushomat/ui/composite/purchases-export";
 import { PurchasesTable } from "@slushomat/ui/composite/purchases-table";
+import { AnalyticsDashboard } from "@slushomat/ui/composite/analytics-dashboard";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
@@ -14,6 +15,16 @@ import { CpuIcon } from "lucide-react";
 import { buttonVariants } from "@slushomat/ui/base/button";
 import { cn } from "@slushomat/ui/lib/utils";
 
+import {
+  AnalyticsTimeControls,
+  localTodayIsoDate,
+  type AnalyticsPeriod,
+} from "@/components/analytics-time-controls";
+import {
+  allChartsLoading,
+  emptyOrgAnalyticsData,
+  ORG_CHART_IDS,
+} from "@/lib/analytics-empty-data";
 import { trpc } from "@/utils/trpc";
 
 export const Route = createFileRoute("/_protected/$orgSlug/purchases")({
@@ -28,6 +39,11 @@ function OperatorPurchasesPage() {
     businessEntityId?: string;
     machineId?: string;
   }>({});
+
+  const [period, setPeriod] = useState<AnalyticsPeriod>(() => ({
+    mode: "week",
+    anchorDate: localTodayIsoDate(),
+  }));
 
   const machinesQuery = useQuery(
     trpc.operator.machine.list.queryOptions({ orgSlug }),
@@ -45,6 +61,16 @@ function OperatorPurchasesPage() {
       limit: 100,
     }),
   });
+
+  const analyticsQuery = useQuery(
+    trpc.operator.analytics.orgDashboard.queryOptions({
+      orgSlug,
+      mode: period.mode,
+      anchorDate: period.anchorDate,
+      machineId: filters.machineId,
+      businessEntityId: filters.businessEntityId,
+    }),
+  );
 
   const entityOptions = useMemo(
     () =>
@@ -82,13 +108,65 @@ function OperatorPurchasesPage() {
     await exportPurchasesToZip(rows, orgSlug);
   };
 
+  const analyticsData = analyticsQuery.data
+    ? {
+        dailyTotals: analyticsQuery.data.dailyTotals,
+        productByDay: analyticsQuery.data.productByDay,
+        machineTotals: analyticsQuery.data.machineTotals,
+        entityTotals: analyticsQuery.data.entityTotals,
+        monthlyFinancials: analyticsQuery.data.monthlyFinancials,
+      }
+    : emptyOrgAnalyticsData;
+
+  const lastUpdated = analyticsQuery.data
+    ? new Intl.DateTimeFormat("de-DE", {
+        dateStyle: "short",
+        timeStyle: "short",
+      }).format(new Date())
+    : undefined;
+
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8">
       <h1 className="mb-2 text-xl font-medium">Purchases</h1>
       <p className="mb-8 text-sm text-muted-foreground">
         Filter sales recorded from your machines. Export the current table as a
-        ZIP with CSV.
+        ZIP with CSV. Charts use the calendar period below and share machine /
+        entity filters with the table filters (table date range is separate).
       </p>
+
+      {analyticsQuery.isError ? (
+        <p className="mb-4 text-sm text-destructive">
+          Could not load analytics.{" "}
+          <button
+            type="button"
+            className="underline"
+            onClick={() => void analyticsQuery.refetch()}
+          >
+            Retry
+          </button>
+        </p>
+      ) : null}
+      {analyticsQuery.data?.meta.degraded ? (
+        <p className="mb-4 text-xs text-amber-700 dark:text-amber-400">
+          Live purchase data only — daily summary view is temporarily
+          unavailable.
+        </p>
+      ) : null}
+
+      <div className="mb-10">
+        <AnalyticsDashboard
+          data={analyticsData}
+          headerSlot={
+            <AnalyticsTimeControls value={period} onChange={setPeriod} />
+          }
+          lastUpdated={lastUpdated}
+          chartLoading={allChartsLoading(
+            ORG_CHART_IDS,
+            analyticsQuery.isFetching && !analyticsQuery.data,
+          )}
+          onChartRetry={() => void analyticsQuery.refetch()}
+        />
+      </div>
 
       <PurchasesTable
         data={rows}
@@ -111,7 +189,7 @@ function OperatorPurchasesPage() {
         ) : (
           <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {(machinesQuery.data ?? []).map((m) => (
-              <li key={m.id}>
+              <li key={m.id} className="flex flex-col gap-2">
                 <Link
                   to="/$orgSlug/machines/$machineId"
                   params={{ orgSlug, machineId: m.id }}
@@ -124,7 +202,7 @@ function OperatorPurchasesPage() {
                         {m.orgDisplayName}
                       </CardTitle>
                       <CardDescription className="text-xs">
-                        Purchases, contract, and slot configuration
+                        Contract, slots, and purchase preview
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -134,10 +212,20 @@ function OperatorPurchasesPage() {
                           "px-0 text-xs",
                         )}
                       >
-                        Open →
+                        Open machine →
                       </span>
                     </CardContent>
                   </Card>
+                </Link>
+                <Link
+                  to="/$orgSlug/machines/$machineId/purchases"
+                  params={{ orgSlug, machineId: m.id }}
+                  className={cn(
+                    buttonVariants({ variant: "outline", size: "sm" }),
+                    "w-full justify-center rounded-none text-xs",
+                  )}
+                >
+                  Machine charts & purchases
                 </Link>
               </li>
             ))}
