@@ -14,9 +14,9 @@
   "scripts": {
     "build": "tsdown",
     "check-types": "tsc -b",
-    "compile": "bun build --compile --minify --sourcemap --bytecode ./src/http-app.ts --outfile server",
-    "dev": "portless api.slushomat tsx watch src/http-app.ts",
-    "dev:local": "tsx watch src/http-app.ts",
+    "compile": "bun build --compile --minify --sourcemap --bytecode ./src/index.ts --outfile server",
+    "dev": "portless api.slushomat tsx watch src/index.ts",
+    "dev:local": "tsx watch src/index.ts",
     "start": "node dist/http-app.mjs",
     "generate:auth-schema": "npx auth generate --config ../../packages/auth/src/index.ts --output ../../packages/db/src/schema/index.ts -y",
     "test:endpoints": "bash scripts/test-endpoints.sh",
