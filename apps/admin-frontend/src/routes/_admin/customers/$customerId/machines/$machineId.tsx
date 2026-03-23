@@ -6,12 +6,24 @@ import {
   CardHeader,
   CardTitle,
 } from "@slushomat/ui/base/card";
+import { MachineAnalyticsDashboard } from "@slushomat/ui/composite/machine-analytics-dashboard";
 import { PurchasesTable } from "@slushomat/ui/composite/purchases-table";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { cn } from "@slushomat/ui/lib/utils";
 
+import {
+  AnalyticsTimeControls,
+  localTodayIsoDate,
+  type AnalyticsPeriod,
+} from "@/components/analytics-time-controls";
+import {
+  allChartsLoading,
+  emptyOrgAnalyticsData,
+  MACHINE_CHART_IDS,
+} from "@/lib/analytics-empty-data";
+import { orgPayloadToMachineDashboardData } from "@/lib/machine-analytics-map";
 import { trpc } from "@/utils/trpc";
 
 export const Route = createFileRoute(
@@ -36,8 +48,12 @@ function AdminMachineDetailPage() {
   const [purchaseFilters, setPurchaseFilters] = useState<{
     dateFrom?: Date;
     dateTo?: Date;
-    businessEntityId?: string;
   }>({});
+
+  const [analyticsPeriod, setAnalyticsPeriod] = useState<AnalyticsPeriod>(() => ({
+    mode: "week",
+    anchorDate: localTodayIsoDate(),
+  }));
 
   const orgQuery = useQuery(
     trpc.admin.customer.get.queryOptions({ organizationId: customerId }),
@@ -68,10 +84,18 @@ function AdminMachineDetailPage() {
       machineId,
       startDate: purchaseFilters.dateFrom,
       endDate: purchaseFilters.dateTo,
-      businessEntityId: purchaseFilters.businessEntityId,
       limit: 100,
     }),
   });
+
+  const analyticsQuery = useQuery(
+    trpc.admin.analytics.machineDashboard.queryOptions({
+      organizationId: customerId,
+      machineId,
+      mode: analyticsPeriod.mode,
+      anchorDate: analyticsPeriod.anchorDate,
+    }),
+  );
 
   const machineRow = useMemo(
     () => (machinesQuery.data ?? []).find((m) => m.machineId === machineId),
@@ -88,15 +112,6 @@ function AdminMachineDetailPage() {
     return e?.name ?? null;
   }, [contract, entitiesQuery.data]);
 
-  const entityOptions = useMemo(
-    () =>
-      (entitiesQuery.data ?? []).map((e) => ({
-        id: e.id,
-        label: e.name,
-      })),
-    [entitiesQuery.data],
-  );
-
   const purchaseRows = useMemo(() => {
     const rows = purchasesQuery.data ?? [];
     return rows.map((r) => ({
@@ -112,6 +127,23 @@ function AdminMachineDetailPage() {
   }, [purchasesQuery.data]);
 
   const org = orgQuery.data;
+
+  const machineAnalyticsData = analyticsQuery.data
+    ? orgPayloadToMachineDashboardData({
+        dailyTotals: analyticsQuery.data.dailyTotals,
+        productByDay: analyticsQuery.data.productByDay,
+        machineTotals: analyticsQuery.data.machineTotals,
+        entityTotals: analyticsQuery.data.entityTotals,
+        monthlyFinancials: analyticsQuery.data.monthlyFinancials,
+      })
+    : orgPayloadToMachineDashboardData(emptyOrgAnalyticsData);
+
+  const analyticsLastUpdated = analyticsQuery.data
+    ? new Intl.DateTimeFormat("de-DE", {
+        dateStyle: "short",
+        timeStyle: "short",
+      }).format(new Date())
+    : undefined;
 
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8">
@@ -155,16 +187,57 @@ function AdminMachineDetailPage() {
         </Link>
       </div>
 
+      {analyticsQuery.isError ? (
+        <p className="mb-4 text-sm text-destructive">
+          Could not load machine analytics.{" "}
+          <button
+            type="button"
+            className="underline"
+            onClick={() => void analyticsQuery.refetch()}
+          >
+            Retry
+          </button>
+        </p>
+      ) : null}
+      {analyticsQuery.data?.meta.degraded ? (
+        <p className="mb-4 text-xs text-amber-700 dark:text-amber-400">
+          Live purchase data only — daily summary view is temporarily
+          unavailable.
+        </p>
+      ) : null}
+
+      <div className="mb-10">
+        <MachineAnalyticsDashboard
+          data={machineAnalyticsData}
+          headerSlot={
+            <AnalyticsTimeControls
+              idPrefix="admin-customer-machine"
+              value={analyticsPeriod}
+              onChange={setAnalyticsPeriod}
+            />
+          }
+          lastUpdated={analyticsLastUpdated}
+          chartLoading={allChartsLoading(
+            MACHINE_CHART_IDS,
+            analyticsQuery.isFetching && !analyticsQuery.data,
+          )}
+          onChartRetry={() => void analyticsQuery.refetch()}
+        />
+      </div>
+
       <section className="mb-10">
-        <h2 className="mb-3 text-sm font-medium">Purchases</h2>
+        <h2 className="mb-3 text-sm font-medium">Purchase log</h2>
+        <p className="mb-4 text-xs text-muted-foreground">
+          Date filters apply to the table only; charts use the period controls
+          above.
+        </p>
         <PurchasesTable
           data={purchaseRows}
           isLoading={purchasesQuery.isPending}
           filters={purchaseFilters}
           onFiltersChange={setPurchaseFilters}
           showMachineColumn={false}
-          showEntityColumn
-          entityOptions={entityOptions}
+          showEntityColumn={false}
         />
       </section>
 
