@@ -5,7 +5,22 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**"],
+      "passThroughEnv": [
+        "NODE_ENV",
+        "VERCEL",
+        "VERCEL_ENV",
+        "VERCEL_URL",
+        "DATABASE_URL",
+        "BETTER_AUTH_SECRET",
+        "BETTER_AUTH_URL",
+        "CORS_ORIGIN_ADMIN",
+        "CORS_ORIGIN_OPERATOR",
+        "VITE_SERVER_URL",
+        "SUPABASE_URL",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_STORAGE_BUCKET_TEMPLATE_PRODUCTS"
+      ]
     },
     "lint": {
       "dependsOn": ["^lint"]
