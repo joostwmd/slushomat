@@ -11,3 +11,10 @@ cd packages/db && pnpm db:push
 ```
 
 When you adopt versioned migrations, baseline from production (`drizzle-kit pull` / introspect) then generate incremental files from there.
+
+## Materialized views
+
+Drizzle `db:push` does **not** create materialized views. For analytics, apply:
+
+- `packages/db/sql/analytics_purchase_daily_summary_mv.sql`
+- Docs: `packages/db/docs/analytics-mv.md`
