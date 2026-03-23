@@ -18,6 +18,7 @@ export async function createContext(c: HonoContext<AppEnv>): Promise<Context> {
     logger: c.get("logger"),
     requestId: c.get("requestId"),
     db,
-    headers: c.req.raw.headers,
+    // Use Hono's header map — avoids `Request.headers` typing when `lib` has no DOM (e.g. Vercel's tsc step).
+    headers: new Headers(c.req.header()),
   };
 }
