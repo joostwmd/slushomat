@@ -16,7 +16,7 @@ if (isDev) {
   app = devApp;
 } else {
   // Production/Vercel: load the bundled app (workspace deps inlined)
-  // @ts-expect-error -- bundle has correct type but no .d.ts
+  // @ts-ignore -- bundle has correct type but no .d.ts
   const { default: prodApp } = await import("../dist/http-app.mjs");
   app = prodApp;
 }
