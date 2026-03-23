@@ -13,6 +13,7 @@ import { adminCustomerRouter } from "./admin-customer";
 import { adminMachineDeploymentRouter } from "./admin-machine-deployment";
 import { adminMachineSlotRouter } from "./admin-machine-slot";
 import { adminOperatorProductRouter } from "./admin-operator-product";
+import { adminAnalyticsRouter } from "./admin-analytics";
 import { adminPurchaseRouter } from "./admin-purchase";
 import {
   machineAdminRouter,
@@ -148,6 +149,7 @@ export const adminRouter = router({
   businessEntity: adminBusinessEntityRouter,
   customer: adminCustomerRouter,
   purchase: adminPurchaseRouter,
+  analytics: adminAnalyticsRouter,
   operatorProduct: adminOperatorProductRouter,
   machineSlot: adminMachineSlotRouter,
   operatorContract: adminOperatorContractRouter,

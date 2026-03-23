@@ -1,55 +1,54 @@
 # Analytics materialized view: `analytics_purchase_daily_summary`
 
-## Purpose
+## TypeScript (`packages/db/src/schema/analytics-purchase-daily-summary.ts`)
 
-Pre-aggregate **closed** purchase days for dashboards (hybrid model: MV for history, live `purchase` queries for “today” in **Europe/Berlin** — see T01).
+Uses **`.existing()`** — Drizzle only uses this for **typed queries**. It does **not** run `CREATE MATERIALIZED VIEW` on `db:push` (avoids “duplicated view name” when the object already exists).
 
-## Grain
+## Create the MV in the database
 
-One row per `(bucket_date, organization_id, machine_id)`:
+**Apply the migration** (creates the materialized view **and** indexes):
 
-- `bucket_date` — calendar date in **Europe/Berlin** (handles CET/CEST).
-- `organization_id`, `machine_id` — `text`, aligned with `purchase`.
-- **Excluded from MV:** the current Berlin calendar **today** and all future dates (filter uses “today” at **refresh** time).
-
-## Measures
-
-| Column | Meaning |
-|--------|---------|
-| `purchase_count` | Number of purchases |
-| `gross_amount_cents` | Sum of `purchase.amount_in_cents` |
-| `platform_revenue_share_cents` | Sum of per-row `(amount_in_cents * revenue_share_basis_points) / 10000` (integer division; ≥ 0) |
-
-**Deferred (not in this MV):** product / business-entity JSON breakdowns, prorated rent, operator net — can be added in a follow-up MV or computed in API (see plan §1.1).
-
-## Contract version at purchase time
-
-Rows are joined to `operator_contract` + `operator_contract_version` with a **temporal** predicate (not `current_version_id`):
-
-- `v.effective_date <= purchase.purchased_at`
-- `v.ended_at IS NULL OR purchase.purchased_at < v.ended_at`
-- If multiple versions match (data anomaly), the **latest** `effective_date` (then `version_number`) wins (`LIMIT 1`).
-
-Purchases with **no** matching version are **dropped** from the aggregate (should not happen if machine server only records purchases under an active contract).
-
-## Timestamp assumption
-
-`purchase.purchased_at` and contract version timestamps are interpreted as **UTC** when the column is `timestamp without time zone` (Drizzle default), using:
-
-`((purchased_at AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Berlin')::date`
-
-If columns are migrated to `timestamptz`, revisit this expression with DBA.
-
-## Refresh
-
-```sql
-REFRESH MATERIALIZED VIEW CONCURRENTLY analytics_purchase_daily_summary;
+```bash
+cd packages/db && pnpm db:migrate
 ```
 
-Requires the **unique** index defined in `packages/db/sql/analytics_purchase_daily_summary_mv.sql`.
+Requires:
 
-Schedule outside the app (T05): e.g. shortly after midnight Europe/Berlin.
+- `purchase`, `operator_contract`, `operator_contract_version` tables already exist (normal `db:push` for the rest of the app).
+- Valid `DATABASE_URL` in `apps/server/.env` (as loaded by `drizzle.config.ts`).
 
-## DST
+After it succeeds, refresh your DB client — materialized views often appear under a **“Materialized views”** (or similar) section, **not** in the same list as regular tables.
 
-Berlin zone name `Europe/Berlin` encodes DST rules; bucketing uses zone conversion, not fixed offsets.
+### If `db:migrate` exits with code 1 and nothing useful is printed
+
+1. Run the SQL yourself once to see the real error:
+
+   ```bash
+   psql "$DATABASE_URL" -f packages/db/src/migrations/0000_analytics_purchase_daily_summary.sql
+   ```
+
+2. If the migration was **recorded** as applied but the MV is still missing, clear that row and re-run migrate:
+
+   ```sql
+   SELECT * FROM "__drizzle_migrations";
+   -- DELETE FROM "__drizzle_migrations" WHERE ... -- only if you confirm a bad state
+   ```
+
+### Changing the MV definition later
+
+`CREATE MATERIALIZED VIEW IF NOT EXISTS` does **not** update an existing MV. To change the query you must `DROP MATERIALIZED VIEW analytics_purchase_daily_summary CASCADE;` (re-run migration / `REFRESH` as appropriate) or use a new migration.
+
+## `db:push` vs `db:migrate`
+
+| Command        | Role |
+|----------------|------|
+| `pnpm db:push` | Tables / enums from Drizzle schema (not this MV). |
+| `pnpm db:migrate` | Runs `0000_analytics_purchase_daily_summary.sql` → **creates MV + indexes**. |
+
+## `REFRESH MATERIALIZED VIEW CONCURRENTLY`
+
+Needs the unique index from the same migration. Nightly refresh is still **outside** Drizzle (cron / pg_cron / worker).
+
+## DST & timestamps
+
+`purchase.purchased_at` is treated as UTC when stored as `timestamp without time zone`; revisit if you move to `timestamptz`.

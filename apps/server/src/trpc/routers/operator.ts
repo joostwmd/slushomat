@@ -5,6 +5,7 @@ import { operatorMachineRouter } from "./operator-machines";
 import { operatorMachineSlotRouter } from "./operator-machine-slot";
 import { operatorOperatorContractRouter } from "./operator-operator-contract";
 import { operatorProductRouter } from "./operator-products";
+import { operatorAnalyticsRouter } from "./operator-analytics";
 import { operatorPurchaseRouter } from "./operator-purchase";
 
 export const operatorRouter = router({
@@ -18,4 +19,5 @@ export const operatorRouter = router({
   machine: operatorMachineRouter,
   machineSlot: operatorMachineSlotRouter,
   purchase: operatorPurchaseRouter,
+  analytics: operatorAnalyticsRouter,
 });
