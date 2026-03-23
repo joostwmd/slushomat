@@ -19,6 +19,7 @@ import {
   type BusinessEntityFormValues,
 } from "@slushomat/ui/composite/business-entity-form";
 import { ProductListRow } from "@slushomat/ui/composite/product-list-row";
+import { AnalyticsDashboard } from "@slushomat/ui/composite/analytics-dashboard";
 import { PurchasesTable } from "@slushomat/ui/composite/purchases-table";
 import { BusinessEntityListRow } from "@slushomat/ui/composite/business-entity-list-row";
 import { env } from "@slushomat/env/web";
@@ -30,6 +31,16 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@slushomat/ui/lib/utils";
 
+import {
+  AnalyticsTimeControls,
+  localTodayIsoDate,
+  type AnalyticsPeriod,
+} from "@/components/analytics-time-controls";
+import {
+  allChartsLoading,
+  emptyOrgAnalyticsData,
+  ORG_CHART_IDS,
+} from "@/lib/analytics-empty-data";
 import { trpc } from "@/utils/trpc";
 
 function errMessage(e: unknown): string {
@@ -77,6 +88,11 @@ function CustomerDetailPage() {
     machineId?: string;
   }>({});
 
+  const [analyticsPeriod, setAnalyticsPeriod] = useState<AnalyticsPeriod>(() => ({
+    mode: "week",
+    anchorDate: localTodayIsoDate(),
+  }));
+
   const orgQuery = useQuery(
     trpc.admin.customer.get.queryOptions({ organizationId: customerId }),
   );
@@ -105,6 +121,17 @@ function CustomerDetailPage() {
       limit: 100,
     }),
     enabled: tab === "purchases",
+  });
+
+  const analyticsQuery = useQuery({
+    ...trpc.admin.analytics.orgDashboard.queryOptions({
+      organizationId: customerId,
+      mode: analyticsPeriod.mode,
+      anchorDate: analyticsPeriod.anchorDate,
+      machineId: purchaseFilters.machineId,
+      businessEntityId: purchaseFilters.businessEntityId,
+    }),
+    enabled: orgQuery.isSuccess && !!customerId && tab === "purchases",
   });
 
   const ownerQuery = useQuery({
@@ -481,16 +508,79 @@ function CustomerDetailPage() {
       ) : null}
 
       {tab === "purchases" ? (
-        <PurchasesTable
-          data={purchaseRows}
-          isLoading={purchasesQuery.isPending}
-          filters={purchaseFilters}
-          onFiltersChange={setPurchaseFilters}
-          showMachineColumn
-          showEntityColumn
-          entityOptions={entityOptions}
-          machineOptions={machineOptions}
-        />
+        <div className="space-y-8">
+          {analyticsQuery.isError ? (
+            <p className="text-sm text-destructive">
+              Could not load customer analytics.{" "}
+              <button
+                type="button"
+                className="underline"
+                onClick={() => void analyticsQuery.refetch()}
+              >
+                Retry
+              </button>
+            </p>
+          ) : null}
+          {analyticsQuery.data?.meta.degraded ? (
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              Live purchase data only — daily summary view is temporarily
+              unavailable.
+            </p>
+          ) : null}
+
+          <AnalyticsDashboard
+            data={
+              analyticsQuery.data
+                ? {
+                    dailyTotals: analyticsQuery.data.dailyTotals,
+                    productByDay: analyticsQuery.data.productByDay,
+                    machineTotals: analyticsQuery.data.machineTotals,
+                    entityTotals: analyticsQuery.data.entityTotals,
+                    monthlyFinancials: analyticsQuery.data.monthlyFinancials,
+                  }
+                : emptyOrgAnalyticsData
+            }
+            headerSlot={
+              <AnalyticsTimeControls
+                idPrefix="admin-customer-org"
+                value={analyticsPeriod}
+                onChange={setAnalyticsPeriod}
+              />
+            }
+            lastUpdated={
+              analyticsQuery.data
+                ? new Intl.DateTimeFormat("de-DE", {
+                    dateStyle: "short",
+                    timeStyle: "short",
+                  }).format(new Date())
+                : undefined
+            }
+            chartLoading={allChartsLoading(
+              ORG_CHART_IDS,
+              analyticsQuery.isFetching && !analyticsQuery.data,
+            )}
+            onChartRetry={() => void analyticsQuery.refetch()}
+          />
+
+          <div>
+            <h2 className="mb-3 text-sm font-medium">Purchase log</h2>
+            <p className="mb-4 text-xs text-muted-foreground">
+              Table filters: date range and export. Charts use the period
+              controls above and share machine / entity filters only (not the
+              table dates).
+            </p>
+            <PurchasesTable
+              data={purchaseRows}
+              isLoading={purchasesQuery.isPending}
+              filters={purchaseFilters}
+              onFiltersChange={setPurchaseFilters}
+              showMachineColumn
+              showEntityColumn
+              entityOptions={entityOptions}
+              machineOptions={machineOptions}
+            />
+          </div>
+        </div>
       ) : null}
 
       <Sheet open={entitySheetOpen} onOpenChange={setEntitySheetOpen}>

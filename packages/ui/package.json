@@ -9,6 +9,7 @@
     "./base/*": "./src/base/*.tsx",
     "./composite/*": "./src/composite/*.tsx",
     "./composite/purchases-export": "./src/composite/purchases-export.ts",
+    "./composite/analytics-mock-data": "./src/composite/analytics-mock-data.ts",
     "./components/*": "./src/base/*.tsx",
     "./hooks/*": "./src/hooks/*.ts",
     "./postcss.config": "./postcss.config.mjs"
@@ -25,6 +26,7 @@
     "next-themes": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
+    "recharts": "^3.8.0",
     "shadcn": "^3.6.2",
     "sonner": "catalog:",
     "tailwind-merge": "^3.3.1",

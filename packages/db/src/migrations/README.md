@@ -11,3 +11,10 @@ cd packages/db && pnpm db:push
 ```
 
 When you adopt versioned migrations, baseline from production (`drizzle-kit pull` / introspect) then generate incremental files from there.
+
+## Materialized views (analytics)
+
+- **`pnpm db:push`** — app tables only (MV is `.existing()` in schema, not pushed).
+- **`pnpm db:migrate`** — creates `analytics_purchase_daily_summary` + indexes via `0000_analytics_purchase_daily_summary.sql`.
+
+Docs: `packages/db/docs/analytics-mv.md`
