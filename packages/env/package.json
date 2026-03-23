@@ -8,7 +8,6 @@
     "./web": "./src/web.ts"
   },
   "dependencies": {
-    "@t3-oss/env-core": "^0.13.1",
     "dotenv": "catalog:",
     "zod": "catalog:"
   },
