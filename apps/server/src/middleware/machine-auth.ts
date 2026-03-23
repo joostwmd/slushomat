@@ -9,7 +9,7 @@ export const machineAuthMiddleware = createMiddleware<AppEnv>(async (c, next) =>
     c.req.header("x-machine-id"),
   );
 
-  if (!result.ok) {
+  if (result.ok === false) {
     return c.json({ code: result.code }, result.status);
   }
 

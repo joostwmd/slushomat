@@ -1,6 +1,9 @@
 {
   "name": "server",
   "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
   "main": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",

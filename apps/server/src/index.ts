@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { serve } from "@hono/node-server";
 import { trpcServer } from "@hono/trpc-server";
 import { auth } from "@slushomat/auth";
 import { createCors, createErrorHandler, healthzResponse } from "@slushomat/api";
@@ -84,21 +85,23 @@ app.notFound((c) =>
   c.json({ error: "Not Found", path: c.req.path }, 404),
 );
 
-// Serve (respect PORT/HOST from portless and other hosts)
-import { serve } from "@hono/node-server";
+export default app;
 
-const port = Number.parseInt(process.env.PORT ?? "", 10);
-const listenPort = Number.isFinite(port) && port > 0 ? port : 3000;
-const hostname = process.env.HOST;
+// Vercel imports this module and uses the default export; do not bind a port there.
+if (!process.env.VERCEL) {
+  const port = Number.parseInt(process.env.PORT ?? "", 10);
+  const listenPort = Number.isFinite(port) && port > 0 ? port : 3000;
+  const hostname = process.env.HOST;
 
-serve(
-  {
-    fetch: app.fetch,
-    port: listenPort,
-    ...(hostname ? { hostname } : {}),
-  },
-  (info) => {
-    const host = hostname ?? "localhost";
-    console.log(`Server is running on http://${host}:${info.port}`);
-  },
-);
+  serve(
+    {
+      fetch: app.fetch,
+      port: listenPort,
+      ...(hostname ? { hostname } : {}),
+    },
+    (info) => {
+      const host = hostname ?? "localhost";
+      console.log(`Server is running on http://${host}:${info.port}`);
+    },
+  );
+}
