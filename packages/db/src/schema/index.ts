@@ -1,3 +1,4 @@
+export * from "./audit-record-version";
 export * from "./auth";
 export * from "./machines";
 export * from "./product-image";
