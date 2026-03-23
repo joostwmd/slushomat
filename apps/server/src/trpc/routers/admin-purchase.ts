@@ -1,16 +1,21 @@
-import { and, desc, eq, gte, lte } from "drizzle-orm";
+import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   businessEntity,
+  machine,
+  operatorContract,
   operatorProduct,
+  organizationMachineDisplayName,
   purchase,
 } from "@slushomat/db/schema";
+import { ensureOrganizationMachineDisplayNames } from "../../lib/organization-machine-display-name";
 import { router } from "../init";
 import { adminProcedure } from "../procedures";
 
 const purchaseRowSchema = z.object({
   id: z.string(),
   machineId: z.string(),
+  machineLabel: z.string(),
   organizationId: z.string(),
   businessEntityId: z.string().nullable(),
   operatorProductId: z.string(),
@@ -58,10 +63,28 @@ export const adminPurchaseRouter = router({
         conds.push(lte(purchase.purchasedAt, input.endDate));
       }
 
+      if (input.organizationId) {
+        const contractMachineRows = await ctx.db
+          .select({ machineId: operatorContract.machineId })
+          .from(operatorContract)
+          .where(eq(operatorContract.organizationId, input.organizationId));
+        const orgMachineIds = [
+          ...new Set(contractMachineRows.map((r) => r.machineId)),
+        ];
+        await ensureOrganizationMachineDisplayNames(
+          ctx.db,
+          input.organizationId,
+          orgMachineIds,
+        );
+      }
+
       const base = ctx.db
         .select({
           id: purchase.id,
           machineId: purchase.machineId,
+          machineLabel: sql<string>`coalesce(${organizationMachineDisplayName.orgDisplayName}, ${machine.internalName}, ${purchase.machineId})`.as(
+            "machine_label",
+          ),
           organizationId: purchase.organizationId,
           businessEntityId: purchase.businessEntityId,
           operatorProductId: purchase.operatorProductId,
@@ -79,6 +102,17 @@ export const adminPurchaseRouter = router({
         .leftJoin(
           businessEntity,
           eq(purchase.businessEntityId, businessEntity.id),
+        )
+        .leftJoin(machine, eq(purchase.machineId, machine.id))
+        .leftJoin(
+          organizationMachineDisplayName,
+          and(
+            eq(organizationMachineDisplayName.machineId, purchase.machineId),
+            eq(
+              organizationMachineDisplayName.organizationId,
+              purchase.organizationId,
+            ),
+          ),
         );
 
       const rows =

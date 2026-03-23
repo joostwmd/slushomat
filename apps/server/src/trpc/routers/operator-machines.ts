@@ -2,7 +2,13 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { db } from "@slushomat/db";
-import { machine, machineVersion, operatorContract } from "@slushomat/db/schema";
+import {
+  machine,
+  machineVersion,
+  operatorContract,
+  organizationMachineDisplayName,
+} from "@slushomat/db/schema";
+import { ensureOrganizationMachineDisplayNames } from "../../lib/organization-machine-display-name";
 import {
   assertUserMemberOfOrg,
   getOrganizationIdForSlug,
@@ -17,6 +23,8 @@ const orgSlugInput = z.object({
 const machineCardSchema = z.object({
   id: z.string(),
   versionNumber: z.string(),
+  internalName: z.string(),
+  orgDisplayName: z.string(),
   comments: z.string(),
   disabled: z.boolean(),
   createdAt: z.date(),
@@ -78,10 +86,18 @@ export const operatorMachineRouter = router({
         return [];
       }
 
+      await ensureOrganizationMachineDisplayNames(
+        ctx.db,
+        organizationId,
+        uniqueIds,
+      );
+
       return ctx.db
         .select({
           id: machine.id,
           versionNumber: machineVersion.versionNumber,
+          internalName: machine.internalName,
+          orgDisplayName: organizationMachineDisplayName.orgDisplayName,
           comments: machine.comments,
           disabled: machine.disabled,
           createdAt: machine.createdAt,
@@ -91,6 +107,16 @@ export const operatorMachineRouter = router({
         .innerJoin(
           machineVersion,
           eq(machine.machineVersionId, machineVersion.id),
+        )
+        .innerJoin(
+          organizationMachineDisplayName,
+          and(
+            eq(organizationMachineDisplayName.machineId, machine.id),
+            eq(
+              organizationMachineDisplayName.organizationId,
+              organizationId,
+            ),
+          ),
         )
         .where(inArray(machine.id, uniqueIds))
         .orderBy(desc(machine.createdAt));
@@ -114,10 +140,18 @@ export const operatorMachineRouter = router({
         input.machineId,
       );
 
+      await ensureOrganizationMachineDisplayNames(
+        ctx.db,
+        organizationId,
+        [input.machineId],
+      );
+
       const [row] = await ctx.db
         .select({
           id: machine.id,
           versionNumber: machineVersion.versionNumber,
+          internalName: machine.internalName,
+          orgDisplayName: organizationMachineDisplayName.orgDisplayName,
           comments: machine.comments,
           disabled: machine.disabled,
           createdAt: machine.createdAt,
@@ -127,6 +161,16 @@ export const operatorMachineRouter = router({
         .innerJoin(
           machineVersion,
           eq(machine.machineVersionId, machineVersion.id),
+        )
+        .innerJoin(
+          organizationMachineDisplayName,
+          and(
+            eq(organizationMachineDisplayName.machineId, machine.id),
+            eq(
+              organizationMachineDisplayName.organizationId,
+              organizationId,
+            ),
+          ),
         )
         .where(eq(machine.id, input.machineId))
         .limit(1);
@@ -139,5 +183,48 @@ export const operatorMachineRouter = router({
       }
 
       return row;
+    }),
+
+  setOrgDisplayName: operatorProcedure
+    .input(
+      orgSlugInput.extend({
+        machineId: z.string().min(1),
+        orgDisplayName: z
+          .string()
+          .trim()
+          .min(1, "Machine name is required")
+          .max(200),
+      }),
+    )
+    .output(z.object({ ok: z.literal(true) }))
+    .mutation(async ({ ctx, input }) => {
+      const organizationId = await resolveOrgWithMembership(
+        ctx,
+        input.orgSlug,
+      );
+      await assertMachineLinkedToOrg(
+        ctx.db,
+        organizationId,
+        input.machineId,
+      );
+
+      const name = input.orgDisplayName.trim();
+
+      await ctx.db
+        .insert(organizationMachineDisplayName)
+        .values({
+          organizationId,
+          machineId: input.machineId,
+          orgDisplayName: name,
+        })
+        .onConflictDoUpdate({
+          target: [
+            organizationMachineDisplayName.organizationId,
+            organizationMachineDisplayName.machineId,
+          ],
+          set: { orgDisplayName: name },
+        });
+
+      return { ok: true as const };
     }),
 });

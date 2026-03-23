@@ -1,4 +1,5 @@
 import { Download, Receipt } from "lucide-react";
+import { useMemo } from "react";
 
 import { Button } from "@slushomat/ui/base/button";
 import {
@@ -10,6 +11,13 @@ import {
 } from "@slushomat/ui/base/empty";
 import { Input } from "@slushomat/ui/base/input";
 import { Label } from "@slushomat/ui/base/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@slushomat/ui/base/select";
 import { Skeleton } from "@slushomat/ui/base/skeleton";
 import {
   Table,
@@ -25,6 +33,8 @@ export interface PurchaseRow {
   id: string;
   purchasedAt: Date;
   machineId: string;
+  /** Human-facing machine label when available (org name, etc.). */
+  machineLabel?: string;
   slot: "left" | "middle" | "right";
   productName: string;
   amountInCents: number;
@@ -78,9 +88,18 @@ function formatEur(amountInCents: number): string {
   }).format(amountInCents / 100);
 }
 
-function truncateMachineId(id: string): string {
-  if (id.length <= 14) return id;
-  return `${id.slice(0, 6)}…${id.slice(-4)}`;
+const FILTER_ALL = "__all__";
+
+function buildSelectItems(
+  sentinel: string,
+  sentinelLabel: string,
+  options: PurchaseFilterOption[],
+): Record<string, string> {
+  const items: Record<string, string> = { [sentinel]: sentinelLabel };
+  for (const o of options) {
+    items[o.id] = o.label;
+  }
+  return items;
 }
 
 function toDateInputValue(d: Date | undefined): string {
@@ -119,6 +138,16 @@ export function PurchasesTable({
     onFiltersChange?.({ ...(filters ?? {}), ...patch });
   };
 
+  const entitySelectItems = useMemo(
+    () => buildSelectItems(FILTER_ALL, "All entities", entityOptions),
+    [entityOptions],
+  );
+
+  const machineSelectItems = useMemo(
+    () => buildSelectItems(FILTER_ALL, "All machines", machineOptions),
+    [machineOptions],
+  );
+
   const showToolbar = Boolean(onFiltersChange || onExportCsv);
 
   return (
@@ -154,25 +183,38 @@ export function PurchasesTable({
                   <Label className="text-[10px] text-muted-foreground">
                     Entity
                   </Label>
-                  <select
-                    className={cn(
-                      "h-8 border border-border bg-background px-2 text-xs",
-                      "focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 focus-visible:outline-none",
-                    )}
-                    value={filters?.businessEntityId ?? ""}
-                    onChange={(e) =>
+                  <Select
+                    items={entitySelectItems}
+                    value={
+                      filters?.businessEntityId &&
+                      filters.businessEntityId !== ""
+                        ? filters.businessEntityId
+                        : FILTER_ALL
+                    }
+                    onValueChange={(v) =>
                       setFilters({
-                        businessEntityId: e.target.value || undefined,
+                        businessEntityId:
+                          v === FILTER_ALL || v == null ? undefined : v,
                       })
                     }
                   >
-                    <option value="">All entities</option>
-                    {entityOptions.map((o) => (
-                      <option key={o.id} value={o.id}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger
+                      className={cn(
+                        "h-8 border border-border bg-background text-xs",
+                        "focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50",
+                      )}
+                    >
+                      <SelectValue placeholder="All entities" />
+                    </SelectTrigger>
+                    <SelectContent position="popper" className="rounded-none">
+                      <SelectItem value={FILTER_ALL}>All entities</SelectItem>
+                      {entityOptions.map((o) => (
+                        <SelectItem key={o.id} value={o.id}>
+                          {o.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               ) : null}
               {showMachineColumn && machineOptions.length > 0 ? (
@@ -180,25 +222,37 @@ export function PurchasesTable({
                   <Label className="text-[10px] text-muted-foreground">
                     Machine
                   </Label>
-                  <select
-                    className={cn(
-                      "h-8 border border-border bg-background px-2 text-xs",
-                      "focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 focus-visible:outline-none",
-                    )}
-                    value={filters?.machineId ?? ""}
-                    onChange={(e) =>
+                  <Select
+                    items={machineSelectItems}
+                    value={
+                      filters?.machineId && filters.machineId !== ""
+                        ? filters.machineId
+                        : FILTER_ALL
+                    }
+                    onValueChange={(v) =>
                       setFilters({
-                        machineId: e.target.value || undefined,
+                        machineId:
+                          v === FILTER_ALL || v == null ? undefined : v,
                       })
                     }
                   >
-                    <option value="">All machines</option>
-                    {machineOptions.map((o) => (
-                      <option key={o.id} value={o.id}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger
+                      className={cn(
+                        "h-8 border border-border bg-background text-xs",
+                        "focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50",
+                      )}
+                    >
+                      <SelectValue placeholder="All machines" />
+                    </SelectTrigger>
+                    <SelectContent position="popper" className="rounded-none">
+                      <SelectItem value={FILTER_ALL}>All machines</SelectItem>
+                      {machineOptions.map((o) => (
+                        <SelectItem key={o.id} value={o.id}>
+                          {o.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               ) : null}
             </>
@@ -266,9 +320,9 @@ export function PurchasesTable({
                 </TableCell>
                 {showMachineColumn ? (
                   <TableCell>
-                    <code className="text-[10px] text-muted-foreground">
-                      {truncateMachineId(row.machineId)}
-                    </code>
+                    <span className="text-sm">
+                      {row.machineLabel?.trim() || "—"}
+                    </span>
                   </TableCell>
                 ) : null}
                 <TableCell>{slotLabel[row.slot]}</TableCell>

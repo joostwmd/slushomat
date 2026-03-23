@@ -20,6 +20,7 @@ const machineRow = z.object({
   id: z.string(),
   machineVersionId: z.string(),
   versionNumber: z.string(),
+  internalName: z.string(),
   comments: z.string(),
   disabled: z.boolean(),
   createdAt: z.date(),
@@ -151,6 +152,7 @@ export const machineAdminRouter = router({
         id: machine.id,
         machineVersionId: machine.machineVersionId,
         versionNumber: machineVersion.versionNumber,
+        internalName: machine.internalName,
         comments: machine.comments,
         disabled: machine.disabled,
         createdAt: machine.createdAt,
@@ -173,6 +175,7 @@ export const machineAdminRouter = router({
           id: machine.id,
           machineVersionId: machine.machineVersionId,
           versionNumber: machineVersion.versionNumber,
+          internalName: machine.internalName,
           comments: machine.comments,
           disabled: machine.disabled,
           createdAt: machine.createdAt,
@@ -198,6 +201,7 @@ export const machineAdminRouter = router({
     .input(
       z.object({
         machineVersionId: z.string().min(1, "Version is required"),
+        internalName: z.string().trim().min(1, "Internal name is required"),
         comments: z.string(),
         disabled: z.boolean().optional(),
       }),
@@ -206,12 +210,14 @@ export const machineAdminRouter = router({
     .mutation(async ({ ctx, input }) => {
       const id = crypto.randomUUID();
       const comments = input.comments.trim();
+      const internalName = input.internalName.trim();
       const [inserted] = await dbSafe(() =>
         ctx.db
           .insert(machine)
           .values({
             id,
             machineVersionId: input.machineVersionId,
+            internalName,
             comments,
             disabled: input.disabled ?? false,
           })
@@ -228,6 +234,7 @@ export const machineAdminRouter = router({
           id: machine.id,
           machineVersionId: machine.machineVersionId,
           versionNumber: machineVersion.versionNumber,
+          internalName: machine.internalName,
           comments: machine.comments,
           disabled: machine.disabled,
           createdAt: machine.createdAt,
@@ -254,6 +261,7 @@ export const machineAdminRouter = router({
       z.object({
         id: z.string().min(1),
         machineVersionId: z.string().min(1, "Version is required"),
+        internalName: z.string().trim().min(1, "Internal name is required"),
         comments: z.string(),
         disabled: z.boolean().optional(),
       }),
@@ -261,12 +269,15 @@ export const machineAdminRouter = router({
     .output(machineRow)
     .mutation(async ({ ctx, input }) => {
       const comments = input.comments.trim();
+      const internalName = input.internalName.trim();
       const patch: {
         machineVersionId: string;
+        internalName: string;
         comments: string;
         disabled?: boolean;
       } = {
         machineVersionId: input.machineVersionId,
+        internalName,
         comments,
       };
       if (input.disabled !== undefined) {
@@ -290,6 +301,7 @@ export const machineAdminRouter = router({
           id: machine.id,
           machineVersionId: machine.machineVersionId,
           versionNumber: machineVersion.versionNumber,
+          internalName: machine.internalName,
           comments: machine.comments,
           disabled: machine.disabled,
           createdAt: machine.createdAt,

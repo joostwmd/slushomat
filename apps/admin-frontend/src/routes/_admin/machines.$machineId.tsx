@@ -57,6 +57,17 @@ function AdminGlobalMachineDetailPage() {
     enabled: !!organizationId,
   });
 
+  const machineMetaQuery = useQuery({
+    ...trpc.admin.customer.listMachines.queryOptions({
+      organizationId: organizationId ?? "",
+    }),
+    enabled: !!organizationId,
+  });
+
+  const machineOrgMeta = (machineMetaQuery.data ?? []).find(
+    (x) => x.machineId === machineId,
+  );
+
   const slotQuery = useQuery({
     ...trpc.admin.machineSlot.getConfigForMachine.queryOptions({
       organizationId: organizationId ?? "",
@@ -106,6 +117,7 @@ function AdminGlobalMachineDetailPage() {
       id: r.id,
       purchasedAt: r.purchasedAt,
       machineId: r.machineId,
+      machineLabel: r.machineLabel,
       slot: r.slot,
       productName: r.productName,
       amountInCents: r.amountInCents,
@@ -143,11 +155,31 @@ function AdminGlobalMachineDetailPage() {
               ? (org?.name ?? "Organization")
               : "No operator contract"}
           </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="font-mono text-lg font-medium">{machineId}</h1>
-            <span className="rounded-none border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
-              v{m.versionNumber}
-            </span>
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-lg font-medium">
+                {machineOrgMeta?.orgDisplayName ??
+                  (m.internalName.trim() || "Unnamed machine")}
+              </h1>
+              <span className="rounded-none border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
+                v{m.versionNumber}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Internal:{" "}
+              <span className="text-foreground">
+                {m.internalName.trim() || "—"}
+              </span>
+              {machineOrgMeta ? (
+                <>
+                  {" "}
+                  · Operator org name:{" "}
+                  <span className="text-foreground">
+                    {machineOrgMeta.orgDisplayName}
+                  </span>
+                </>
+              ) : null}
+            </p>
           </div>
         </div>
         {organizationId ? (

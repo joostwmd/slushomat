@@ -18,8 +18,10 @@ import {
   operatorContract,
   operatorContractVersion,
   organization,
+  organizationMachineDisplayName,
   user,
 } from "@slushomat/db/schema";
+import { ensureOrganizationMachineDisplayNames } from "../../lib/organization-machine-display-name";
 import { router } from "../init";
 import { adminProcedure } from "../procedures";
 
@@ -129,6 +131,8 @@ export const adminCustomerRouter = router({
       z.array(
         z.object({
           machineId: z.string(),
+          internalName: z.string(),
+          orgDisplayName: z.string(),
           versionNumber: z.string(),
           contractStatus: contractStatusSchema,
           hasOpenDeployment: z.boolean(),
@@ -139,6 +143,7 @@ export const adminCustomerRouter = router({
       const contractRows = await ctx.db
         .select({
           machineId: machine.id,
+          internalName: machine.internalName,
           versionNumber: machineVersion.versionNumber,
           status: operatorContractVersion.status,
           versionCreatedAt: operatorContractVersion.createdAt,
@@ -159,6 +164,7 @@ export const adminCustomerRouter = router({
       const seen = new Set<string>();
       const picked: {
         machineId: string;
+        internalName: string;
         versionNumber: string;
         contractStatus: z.infer<typeof contractStatusSchema>;
       }[] = [];
@@ -168,6 +174,7 @@ export const adminCustomerRouter = router({
         seen.add(row.machineId);
         picked.push({
           machineId: row.machineId,
+          internalName: row.internalName,
           versionNumber: row.versionNumber,
           contractStatus:
             (row.status as z.infer<typeof contractStatusSchema> | undefined) ??
@@ -180,6 +187,32 @@ export const adminCustomerRouter = router({
       }
 
       const machineIds = picked.map((p) => p.machineId);
+
+      await ensureOrganizationMachineDisplayNames(
+        ctx.db,
+        input.organizationId,
+        machineIds,
+      );
+
+      const nameRows = await ctx.db
+        .select({
+          machineId: organizationMachineDisplayName.machineId,
+          orgDisplayName: organizationMachineDisplayName.orgDisplayName,
+        })
+        .from(organizationMachineDisplayName)
+        .where(
+          and(
+            eq(
+              organizationMachineDisplayName.organizationId,
+              input.organizationId,
+            ),
+            inArray(organizationMachineDisplayName.machineId, machineIds),
+          ),
+        );
+      const orgNameByMachine = new Map(
+        nameRows.map((r) => [r.machineId, r.orgDisplayName]),
+      );
+
       const openRows = await ctx.db
         .select({ machineId: machineDeployment.machineId })
         .from(machineDeployment)
@@ -193,6 +226,7 @@ export const adminCustomerRouter = router({
 
       return picked.map((p) => ({
         ...p,
+        orgDisplayName: orgNameByMachine.get(p.machineId) ?? "",
         hasOpenDeployment: openSet.has(p.machineId),
       }));
     }),

@@ -33,6 +33,8 @@ export const machine = pgTable(
     machineVersionId: text("machine_version_id")
       .notNull()
       .references(() => machineVersion.id, { onDelete: "restrict" }),
+    /** Platform-admin label for internal mapping (separate from operator org vocab). */
+    internalName: text("internal_name").notNull().default(""),
     comments: text("comments").notNull().default(""),
     disabled: boolean("disabled").default(false).notNull(),
     apiKeyId: text("api_key_id").references(() => apikey.id, {

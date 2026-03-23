@@ -9,6 +9,13 @@ import {
 import { Input } from "@slushomat/ui/base/input";
 import { Label } from "@slushomat/ui/base/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@slushomat/ui/base/select";
+import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -21,6 +28,7 @@ import { env } from "@slushomat/env/web";
 import { cn } from "@slushomat/ui/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { trpc } from "@/utils/trpc";
@@ -36,6 +44,23 @@ export const Route = createFileRoute("/_admin/contracts")({
 });
 
 const PDF_MAX = 10 * 1024 * 1024;
+
+const SELECT_NONE = "__none__";
+const FILTER_ALL_ORG = "__all_orgs__";
+const FILTER_ALL_STATUS = "__all_status__";
+
+const CONTRACT_STATUS_ITEMS: Record<string, ReactNode> = {
+  [FILTER_ALL_STATUS]: "All",
+  draft: "Draft",
+  active: "Active",
+  terminated: "Terminated",
+};
+
+const VERSION_STATUS_ITEMS: Record<string, ReactNode> = {
+  draft: "Draft",
+  active: "Active",
+  terminated: "Terminated",
+};
 
 const textareaClassName = cn(
   "flex min-h-[72px] w-full min-w-0 rounded-none border border-input bg-transparent px-2.5 py-1.5 text-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 md:text-xs dark:bg-input/30",
@@ -67,6 +92,8 @@ type ContractRow = {
   organizationId: string;
   businessEntityId: string;
   machineId: string;
+  machineInternalName: string;
+  machineOrgDisplayName: string | null;
   currentVersionId: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -348,6 +375,40 @@ function AdminContractsPage() {
     [createEntitiesQuery.data],
   );
 
+  const filterOrgSelectItems = useMemo(() => {
+    const items: Record<string, ReactNode> = { [FILTER_ALL_ORG]: "All" };
+    for (const o of orgsQuery.data ?? []) {
+      items[o.id] = o.name;
+    }
+    return items;
+  }, [orgsQuery.data]);
+
+  const createOrgSelectItems = useMemo(() => {
+    const items: Record<string, ReactNode> = { [SELECT_NONE]: "—" };
+    for (const o of orgsQuery.data ?? []) {
+      items[o.id] = o.name;
+    }
+    return items;
+  }, [orgsQuery.data]);
+
+  const createEntitySelectItems = useMemo(() => {
+    const items: Record<string, ReactNode> = { [SELECT_NONE]: "—" };
+    for (const e of createEntities) {
+      items[e.id] = e.name;
+    }
+    return items;
+  }, [createEntities]);
+
+  const createMachineSelectItems = useMemo(() => {
+    const items: Record<string, ReactNode> = { [SELECT_NONE]: "—" };
+    for (const m of machinesQuery.data ?? []) {
+      const label =
+        m.internalName.trim() || "Machine";
+      items[m.id] = `${label} · v${m.versionNumber}`;
+    }
+    return items;
+  }, [machinesQuery.data]);
+
   return (
     <div className="container mx-auto max-w-6xl px-4 py-8">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
@@ -374,18 +435,25 @@ function AdminContractsPage() {
         <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="grid gap-1.5">
             <Label>Organization</Label>
-            <select
-              className="h-8 rounded-none border border-input bg-transparent px-2 text-xs dark:bg-input/30"
-              value={filterOrg}
-              onChange={(e) => setFilterOrg(e.target.value)}
+            <Select
+              items={filterOrgSelectItems}
+              value={filterOrg || FILTER_ALL_ORG}
+              onValueChange={(v) =>
+                setFilterOrg(v === FILTER_ALL_ORG ? "" : (v ?? ""))
+              }
             >
-              <option value="">All</option>
-              {(orgsQuery.data ?? []).map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="h-8 rounded-none text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent position="popper" className="rounded-none">
+                <SelectItem value={FILTER_ALL_ORG}>All</SelectItem>
+                {(orgsQuery.data ?? []).map((o) => (
+                  <SelectItem key={o.id} value={o.id}>
+                    {o.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid gap-1.5">
             <Label>Machine ID</Label>
@@ -407,18 +475,26 @@ function AdminContractsPage() {
           </div>
           <div className="grid gap-1.5">
             <Label>Status</Label>
-            <select
-              className="h-8 rounded-none border border-input bg-transparent px-2 text-xs dark:bg-input/30"
-              value={filterStatus}
-              onChange={(e) =>
-                setFilterStatus(e.target.value as typeof filterStatus)
+            <Select
+              value={filterStatus || FILTER_ALL_STATUS}
+              onValueChange={(v) =>
+                setFilterStatus(
+                  v === FILTER_ALL_STATUS || v == null
+                    ? ""
+                    : (v as typeof filterStatus),
+                )
               }
             >
-              <option value="">All</option>
-              <option value="draft">Draft</option>
-              <option value="active">Active</option>
-              <option value="terminated">Terminated</option>
-            </select>
+              <SelectTrigger className="h-8 rounded-none text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent position="popper" className="rounded-none">
+                <SelectItem value={FILTER_ALL_STATUS}>All</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="terminated">Terminated</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -447,7 +523,19 @@ function AdminContractsPage() {
                 {rows.map((r) => (
                   <tr key={r.id} className="border-b border-border/60">
                     <td className="py-2 pr-2 capitalize">{r.status}</td>
-                    <td className="py-2 pr-2 font-mono">{r.machineId.slice(0, 10)}…</td>
+                    <td className="py-2 pr-2">
+                      <div className="max-w-[14rem] space-y-0.5">
+                        <div className="font-medium leading-tight">
+                          {r.machineInternalName.trim() ||
+                            r.machineOrgDisplayName?.trim() ||
+                            "Unnamed machine"}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground leading-tight">
+                          Operator:{" "}
+                          {r.machineOrgDisplayName?.trim() || "—"}
+                        </div>
+                      </div>
+                    </td>
                     <td className="py-2 pr-2">
                       {(r.monthlyRentInCents / 100).toFixed(2)}
                     </td>
@@ -488,66 +576,91 @@ function AdminContractsPage() {
           <div className="grid flex-1 gap-3 px-4 pb-4">
             <div className="grid gap-1.5">
               <Label>Organization</Label>
-              <select
-                className="h-8 rounded-none border border-input bg-transparent px-2 text-xs"
-                value={createOrg}
-                onChange={(e) => {
-                  setCreateOrg(e.target.value);
+              <Select
+                items={createOrgSelectItems}
+                value={createOrg || SELECT_NONE}
+                onValueChange={(v) => {
+                  setCreateOrg(v === SELECT_NONE ? "" : (v ?? ""));
                   setCreateEntity("");
                 }}
               >
-                <option value="">—</option>
-                {(orgsQuery.data ?? []).map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.name}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="h-8 rounded-none text-xs">
+                  <SelectValue placeholder="—" />
+                </SelectTrigger>
+                <SelectContent position="popper" className="rounded-none">
+                  <SelectItem value={SELECT_NONE}>—</SelectItem>
+                  {(orgsQuery.data ?? []).map((o) => (
+                    <SelectItem key={o.id} value={o.id}>
+                      {o.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-1.5">
               <Label>Business entity</Label>
-              <select
-                className="h-8 rounded-none border border-input bg-transparent px-2 text-xs"
-                value={createEntity}
-                onChange={(e) => setCreateEntity(e.target.value)}
+              <Select
+                items={createEntitySelectItems}
+                value={createEntity || SELECT_NONE}
+                onValueChange={(v) =>
+                  setCreateEntity(v === SELECT_NONE ? "" : (v ?? ""))
+                }
                 disabled={!createOrg}
               >
-                <option value="">—</option>
-                {createEntities.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.name}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="h-8 rounded-none text-xs">
+                  <SelectValue placeholder="—" />
+                </SelectTrigger>
+                <SelectContent position="popper" className="rounded-none">
+                  <SelectItem value={SELECT_NONE}>—</SelectItem>
+                  {createEntities.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-1.5">
               <Label>Machine</Label>
-              <select
-                className="h-8 rounded-none border border-input bg-transparent px-2 text-xs"
-                value={createMachine}
-                onChange={(e) => setCreateMachine(e.target.value)}
+              <Select
+                items={createMachineSelectItems}
+                value={createMachine || SELECT_NONE}
+                onValueChange={(v) =>
+                  setCreateMachine(v === SELECT_NONE ? "" : (v ?? ""))
+                }
               >
-                <option value="">—</option>
-                {(machinesQuery.data ?? []).map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.id.slice(0, 8)}… v{m.versionNumber}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="h-8 rounded-none text-xs">
+                  <SelectValue placeholder="—" />
+                </SelectTrigger>
+                <SelectContent position="popper" className="rounded-none">
+                  <SelectItem value={SELECT_NONE}>—</SelectItem>
+                  {(machinesQuery.data ?? []).map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.internalName.trim() || "Unnamed machine"} · v
+                      {m.versionNumber}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-1.5">
               <Label>Status</Label>
-              <select
-                className="h-8 rounded-none border border-input bg-transparent px-2 text-xs"
+              <Select
+                items={VERSION_STATUS_ITEMS}
                 value={cStatus}
-                onChange={(e) =>
-                  setCStatus(e.target.value as typeof cStatus)
+                onValueChange={(v) =>
+                  setCStatus((v ?? "draft") as typeof cStatus)
                 }
               >
-                <option value="draft">Draft</option>
-                <option value="active">Active</option>
-                <option value="terminated">Terminated</option>
-              </select>
+                <SelectTrigger className="h-8 rounded-none text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="popper" className="rounded-none">
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="terminated">Terminated</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-1.5 sm:grid-cols-2">
               <div>
@@ -726,17 +839,22 @@ function AdminContractsPage() {
           <div className="grid flex-1 gap-3 px-4">
             <div className="grid gap-1.5">
               <Label>Status</Label>
-              <select
-                className="h-8 rounded-none border px-2 text-xs"
+              <Select
+                items={VERSION_STATUS_ITEMS}
                 value={vStatus}
-                onChange={(e) =>
-                  setVStatus(e.target.value as typeof vStatus)
+                onValueChange={(v) =>
+                  setVStatus((v ?? "draft") as typeof vStatus)
                 }
               >
-                <option value="draft">Draft</option>
-                <option value="active">Active</option>
-                <option value="terminated">Terminated</option>
-              </select>
+                <SelectTrigger className="h-8 rounded-none text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="popper" className="rounded-none">
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="terminated">Terminated</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-1.5 sm:grid-cols-2">
               <div>

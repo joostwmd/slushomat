@@ -12,11 +12,20 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "@slushomat/ui/base/empty";
+import { Input } from "@slushomat/ui/base/input";
 import { Label } from "@slushomat/ui/base/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@slushomat/ui/base/select";
 import { exportPurchasesToZip } from "@slushomat/ui/composite/purchases-export";
 import { PurchasesTable } from "@slushomat/ui/composite/purchases-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@slushomat/ui/lib/utils";
@@ -28,6 +37,8 @@ export const Route = createFileRoute(
 )({
   component: OperatorMachineDetailPage,
 });
+
+const SLOT_EMPTY = "__slot_empty__";
 
 type SlotsState = {
   left: string | null;
@@ -65,6 +76,8 @@ function OperatorMachineDetailPage() {
     dateTo?: Date;
     businessEntityId?: string;
   }>({});
+
+  const [orgDisplayNameDraft, setOrgDisplayNameDraft] = useState("");
 
   const machineQuery = useQuery({
     ...trpc.operator.machine.get.queryOptions({ orgSlug, machineId }),
@@ -113,6 +126,12 @@ function OperatorMachineDetailPage() {
     }
   }, [configQuery.data]);
 
+  useEffect(() => {
+    if (machineQuery.data) {
+      setOrgDisplayNameDraft(machineQuery.data.orgDisplayName);
+    }
+  }, [machineQuery.data]);
+
   const setSlotsMutation = useMutation({
     ...trpc.operator.machineSlot.setSlots.mutationOptions(),
     onSuccess: () => {
@@ -122,6 +141,23 @@ function OperatorMachineDetailPage() {
           orgSlug,
           machineId,
         }),
+      );
+    },
+    onError: (e) => toast.error(errMessage(e)),
+  });
+
+  const setOrgDisplayNameMutation = useMutation({
+    ...trpc.operator.machine.setOrgDisplayName.mutationOptions(),
+    onSuccess: () => {
+      toast.success("Machine name updated");
+      void queryClient.invalidateQueries(
+        trpc.operator.machine.list.queryFilter({ orgSlug }),
+      );
+      void queryClient.invalidateQueries(
+        trpc.operator.machine.get.queryFilter({ orgSlug, machineId }),
+      );
+      void queryClient.invalidateQueries(
+        trpc.operator.purchase.list.queryFilter({ orgSlug }),
       );
     },
     onError: (e) => toast.error(errMessage(e)),
@@ -164,6 +200,7 @@ function OperatorMachineDetailPage() {
       id: r.id,
       purchasedAt: r.purchasedAt,
       machineId: r.machineId,
+      machineLabel: r.machineLabel,
       slot: r.slot,
       productName: r.productName,
       amountInCents: r.amountInCents,
@@ -172,13 +209,27 @@ function OperatorMachineDetailPage() {
   }, [purchasesQuery.data]);
 
   const handleExportPurchases = async () => {
-    await exportPurchasesToZip(
-      purchaseRows,
-      `${orgSlug}-${machineId.slice(0, 8)}`,
-    );
+    const m = machineQuery.data;
+    const nameSlug =
+      m?.orgDisplayName
+        .trim()
+        .replace(/[^a-zA-Z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")
+        .slice(0, 48) || "purchases";
+    await exportPurchasesToZip(purchaseRows, `${orgSlug}-${nameSlug}`);
   };
 
   const products = productsQuery.data ?? [];
+
+  const productSlotSelectItems = useMemo(() => {
+    const items: Record<string, ReactNode> = {
+      [SLOT_EMPTY]: "— Empty —",
+    };
+    for (const p of products) {
+      items[p.id] = p.name;
+    }
+    return items;
+  }, [products]);
 
   const showNoDeployment =
     machineQuery.isSuccess &&
@@ -227,13 +278,19 @@ function OperatorMachineDetailPage() {
       <div className="mb-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="font-mono text-lg font-medium tracking-tight">
-              {m.id}
+            <h1 className="text-xl font-medium tracking-tight">
+              {m.orgDisplayName}
             </h1>
             <p className="text-sm text-muted-foreground">
               Model {m.versionNumber}
               {m.disabled ? " · disabled" : ""}
             </p>
+            {m.internalName.trim() ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Internal name:{" "}
+                <span className="text-foreground">{m.internalName}</span>
+              </p>
+            ) : null}
           </div>
           <Link
             to="/$orgSlug/contracts"
@@ -245,6 +302,48 @@ function OperatorMachineDetailPage() {
           </Link>
         </div>
       </div>
+
+      <section className="mb-10">
+        <h2 className="mb-3 text-sm font-medium">Name in your organization</h2>
+        <Card className="rounded-none border">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Operator machine name</CardTitle>
+            <CardDescription>
+              Shared by everyone in this organization. Duplicates are allowed.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-end gap-3">
+            <div className="grid min-w-[12rem] flex-1 gap-1.5">
+              <Label htmlFor="org-machine-name">Name</Label>
+              <Input
+                id="org-machine-name"
+                className="rounded-none"
+                value={orgDisplayNameDraft}
+                onChange={(e) => setOrgDisplayNameDraft(e.target.value)}
+                maxLength={200}
+              />
+            </div>
+            <Button
+              type="button"
+              className="rounded-none"
+              disabled={
+                setOrgDisplayNameMutation.isPending ||
+                !orgDisplayNameDraft.trim() ||
+                orgDisplayNameDraft.trim() === m.orgDisplayName
+              }
+              onClick={() => {
+                setOrgDisplayNameMutation.mutate({
+                  orgSlug,
+                  machineId,
+                  orgDisplayName: orgDisplayNameDraft.trim(),
+                });
+              }}
+            >
+              {setOrgDisplayNameMutation.isPending ? "Saving…" : "Save name"}
+            </Button>
+          </CardContent>
+        </Card>
+      </section>
 
       <section className="mb-10">
         <h2 className="mb-3 text-sm font-medium">Purchases</h2>
@@ -373,28 +472,32 @@ function OperatorMachineDetailPage() {
               ).map(([key, label]) => (
                 <div key={key} className="grid gap-1.5">
                   <Label>{label}</Label>
-                  <select
-                    className="h-9 w-full rounded-none border border-input bg-transparent px-2 text-sm dark:bg-input/30"
-                    value={slotsDraft[key] ?? ""}
-                    onChange={(e) => {
-                      const v = e.target.value;
+                  <Select
+                    items={productSlotSelectItems}
+                    value={slotsDraft[key] ?? SLOT_EMPTY}
+                    onValueChange={(v) => {
                       setSlotsDraft((prev) =>
                         prev
                           ? {
                               ...prev,
-                              [key]: v === "" ? null : v,
+                              [key]: v === SLOT_EMPTY ? null : v,
                             }
                           : prev,
                       );
                     }}
                   >
-                    <option value="">— Empty —</option>
-                    {products.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="h-9 w-full rounded-none text-sm">
+                      <SelectValue placeholder="— Empty —" />
+                    </SelectTrigger>
+                    <SelectContent position="popper" className="rounded-none">
+                      <SelectItem value={SLOT_EMPTY}>— Empty —</SelectItem>
+                      {products.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               ))}
               <Button

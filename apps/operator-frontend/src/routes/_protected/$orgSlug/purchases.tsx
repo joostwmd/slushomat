@@ -59,7 +59,7 @@ function OperatorPurchasesPage() {
     () =>
       (machinesQuery.data ?? []).map((m) => ({
         id: m.id,
-        label: `${m.id.slice(0, 8)}…`,
+        label: m.orgDisplayName,
       })),
     [machinesQuery.data],
   );
@@ -70,6 +70,7 @@ function OperatorPurchasesPage() {
       id: r.id,
       purchasedAt: r.purchasedAt,
       machineId: r.machineId,
+      machineLabel: r.machineLabel,
       slot: r.slot,
       productName: r.productName,
       amountInCents: r.amountInCents,
@@ -119,7 +120,9 @@ function OperatorPurchasesPage() {
                   <Card className="h-full rounded-none border transition-colors hover:bg-muted/40">
                     <CardHeader className="space-y-1">
                       <CpuIcon className="size-5 text-muted-foreground" />
-                      <CardTitle className="font-mono text-sm">{m.id}</CardTitle>
+                      <CardTitle className="text-base font-medium">
+                        {m.orgDisplayName}
+                      </CardTitle>
                       <CardDescription className="text-xs">
                         Purchases, contract, and slot configuration
                       </CardDescription>

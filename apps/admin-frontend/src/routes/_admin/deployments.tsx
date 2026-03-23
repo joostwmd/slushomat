@@ -7,8 +7,16 @@ import {
   CardTitle,
 } from "@slushomat/ui/base/card";
 import { Label } from "@slushomat/ui/base/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@slushomat/ui/base/select";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { trpc } from "@/utils/trpc";
@@ -16,6 +24,8 @@ import { trpc } from "@/utils/trpc";
 export const Route = createFileRoute("/_admin/deployments")({
   component: AdminDeploymentsPage,
 });
+
+const SELECT_NONE = "__none__";
 
 function errMessage(e: unknown): string {
   if (e instanceof Error) return e.message;
@@ -88,6 +98,31 @@ function AdminDeploymentsPage() {
   const rows = listQuery.data ?? [];
   const openRows = rows.filter((r) => !r.endedAt);
 
+  const orgSelectItems = useMemo(() => {
+    const items: Record<string, ReactNode> = { [SELECT_NONE]: "— Select —" };
+    for (const o of orgsQuery.data ?? []) {
+      items[o.id] = `${o.name} (${o.slug})`;
+    }
+    return items;
+  }, [orgsQuery.data]);
+
+  const entitySelectItems = useMemo(() => {
+    const items: Record<string, ReactNode> = { [SELECT_NONE]: "— Select —" };
+    for (const e of entities) {
+      items[e.id] = e.name;
+    }
+    return items;
+  }, [entities]);
+
+  const machineSelectItems = useMemo(() => {
+    const items: Record<string, ReactNode> = { [SELECT_NONE]: "— Select —" };
+    for (const m of machinesQuery.data ?? []) {
+      const label = m.internalName.trim() || "Unnamed machine";
+      items[m.id] = `${label} · v${m.versionNumber}`;
+    }
+    return items;
+  }, [machinesQuery.data]);
+
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8">
       <h1 className="mb-4 text-xl font-medium">Deployments</h1>
@@ -107,52 +142,72 @@ function AdminDeploymentsPage() {
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="grid gap-1.5 sm:col-span-2">
             <Label>Organization</Label>
-            <select
-              className="h-8 w-full rounded-none border border-input bg-transparent px-2 text-xs dark:bg-input/30"
-              value={organizationId}
-              onChange={(e) => {
-                setOrganizationId(e.target.value);
+            <Select
+              items={orgSelectItems}
+              value={organizationId || SELECT_NONE}
+              onValueChange={(v) => {
+                setOrganizationId(v === SELECT_NONE ? "" : (v ?? ""));
                 setBusinessEntityId("");
               }}
             >
-              <option value="">— Select —</option>
-              {(orgsQuery.data ?? []).map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.name} ({o.slug})
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="h-8 w-full rounded-none text-xs">
+                <SelectValue placeholder="— Select —" />
+              </SelectTrigger>
+              <SelectContent position="popper" className="rounded-none">
+                <SelectItem value={SELECT_NONE}>— Select —</SelectItem>
+                {(orgsQuery.data ?? []).map((o) => (
+                  <SelectItem key={o.id} value={o.id}>
+                    {o.name} ({o.slug})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid gap-1.5">
             <Label>Business entity</Label>
-            <select
-              className="h-8 w-full rounded-none border border-input bg-transparent px-2 text-xs dark:bg-input/30"
-              value={businessEntityId}
-              onChange={(e) => setBusinessEntityId(e.target.value)}
+            <Select
+              items={entitySelectItems}
+              value={businessEntityId || SELECT_NONE}
+              onValueChange={(v) =>
+                setBusinessEntityId(v === SELECT_NONE ? "" : (v ?? ""))
+              }
               disabled={!organizationId}
             >
-              <option value="">— Select —</option>
-              {entities.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="h-8 w-full rounded-none text-xs">
+                <SelectValue placeholder="— Select —" />
+              </SelectTrigger>
+              <SelectContent position="popper" className="rounded-none">
+                <SelectItem value={SELECT_NONE}>— Select —</SelectItem>
+                {entities.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid gap-1.5">
             <Label>Machine</Label>
-            <select
-              className="h-8 w-full rounded-none border border-input bg-transparent px-2 text-xs dark:bg-input/30"
-              value={machineId}
-              onChange={(e) => setMachineId(e.target.value)}
+            <Select
+              items={machineSelectItems}
+              value={machineId || SELECT_NONE}
+              onValueChange={(v) =>
+                setMachineId(v === SELECT_NONE ? "" : (v ?? ""))
+              }
             >
-              <option value="">— Select —</option>
-              {(machinesQuery.data ?? []).map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.id.slice(0, 8)}… (v{m.versionNumber})
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="h-8 w-full rounded-none text-xs">
+                <SelectValue placeholder="— Select —" />
+              </SelectTrigger>
+              <SelectContent position="popper" className="rounded-none">
+                <SelectItem value={SELECT_NONE}>— Select —</SelectItem>
+                {(machinesQuery.data ?? []).map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.internalName.trim() || "Unnamed machine"} · v
+                    {m.versionNumber}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="sm:col-span-2">
             <Button
@@ -186,7 +241,7 @@ function AdminDeploymentsPage() {
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b">
-                  <th className="py-2 pr-2 font-medium">Deployment</th>
+                  <th className="py-2 pr-2 font-medium">#</th>
                   <th className="py-2 pr-2 font-medium">Machine</th>
                   <th className="py-2 pr-2 font-medium">Entity</th>
                   <th className="py-2 pr-2 font-medium">Started</th>
@@ -194,12 +249,20 @@ function AdminDeploymentsPage() {
                 </tr>
               </thead>
               <tbody>
-                {openRows.map((d) => (
+                {openRows.map((d, index) => (
                   <tr key={d.id} className="border-b border-border/60">
-                    <td className="py-2 pr-2 font-mono">{d.id.slice(0, 8)}…</td>
-                    <td className="py-2 pr-2 font-mono">{d.machineId.slice(0, 8)}…</td>
-                    <td className="py-2 pr-2 font-mono">
-                      {d.businessEntityId.slice(0, 8)}…
+                    <td className="py-2 pr-2 tabular-nums text-muted-foreground">
+                      {index + 1}
+                    </td>
+                    <td className="py-2 pr-2">
+                      <span className="text-xs font-medium">
+                        {d.machineDisplayName}
+                      </span>
+                    </td>
+                    <td className="py-2 pr-2">
+                      <span className="text-xs font-medium">
+                        {d.businessEntityDisplayName}
+                      </span>
                     </td>
                     <td className="py-2 pr-2 text-muted-foreground">
                       {d.startedAt.toLocaleString()}

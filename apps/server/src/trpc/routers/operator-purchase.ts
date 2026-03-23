@@ -1,10 +1,14 @@
-import { and, desc, eq, gte, lte } from "drizzle-orm";
+import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   businessEntity,
+  machine,
+  operatorContract,
   operatorProduct,
+  organizationMachineDisplayName,
   purchase,
 } from "@slushomat/db/schema";
+import { ensureOrganizationMachineDisplayNames } from "../../lib/organization-machine-display-name";
 import {
   assertUserMemberOfOrg,
   getOrganizationIdForSlug,
@@ -15,6 +19,7 @@ import { operatorProcedure } from "../procedures";
 const purchaseRowSchema = z.object({
   id: z.string(),
   machineId: z.string(),
+  machineLabel: z.string(),
   businessEntityId: z.string().nullable(),
   operatorProductId: z.string(),
   productName: z.string(),
@@ -53,6 +58,19 @@ export const operatorPurchaseRouter = router({
         input.orgSlug,
       );
 
+      const contractMachineRows = await ctx.db
+        .select({ machineId: operatorContract.machineId })
+        .from(operatorContract)
+        .where(eq(operatorContract.organizationId, organizationId));
+      const orgMachineIds = [
+        ...new Set(contractMachineRows.map((r) => r.machineId)),
+      ];
+      await ensureOrganizationMachineDisplayNames(
+        ctx.db,
+        organizationId,
+        orgMachineIds,
+      );
+
       const conds = [eq(purchase.organizationId, organizationId)];
 
       if (input.machineId) {
@@ -74,6 +92,9 @@ export const operatorPurchaseRouter = router({
         .select({
           id: purchase.id,
           machineId: purchase.machineId,
+          machineLabel: sql<string>`coalesce(${organizationMachineDisplayName.orgDisplayName}, ${machine.internalName}, ${purchase.machineId})`.as(
+            "machine_label",
+          ),
           businessEntityId: purchase.businessEntityId,
           operatorProductId: purchase.operatorProductId,
           productName: operatorProduct.name,
@@ -90,6 +111,17 @@ export const operatorPurchaseRouter = router({
         .leftJoin(
           businessEntity,
           eq(purchase.businessEntityId, businessEntity.id),
+        )
+        .leftJoin(machine, eq(purchase.machineId, machine.id))
+        .leftJoin(
+          organizationMachineDisplayName,
+          and(
+            eq(organizationMachineDisplayName.machineId, purchase.machineId),
+            eq(
+              organizationMachineDisplayName.organizationId,
+              organizationId,
+            ),
+          ),
         )
         .where(and(...conds))
         .orderBy(desc(purchase.purchasedAt))

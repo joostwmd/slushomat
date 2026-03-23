@@ -3,7 +3,10 @@ import { and, desc, eq, max } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { db } from "@slushomat/db";
-import { machine } from "@slushomat/db/schema";
+import {
+  machine,
+  organizationMachineDisplayName,
+} from "@slushomat/db/schema";
 import {
   operatorContract,
   operatorContractChange,
@@ -19,6 +22,7 @@ import {
   assertAtMostOneActiveContractForMachine,
   assertBusinessEntityBelongsToOrg,
 } from "../../lib/machine-lifecycle";
+import { ensureOrganizationMachineDisplayNames } from "../../lib/organization-machine-display-name";
 import { router } from "../init";
 import { adminProcedure } from "../procedures";
 
@@ -68,6 +72,8 @@ const contractListItemSchema = z.object({
   organizationId: z.string(),
   businessEntityId: z.string(),
   machineId: z.string(),
+  machineInternalName: z.string(),
+  machineOrgDisplayName: z.string().nullable(),
   currentVersionId: z.string().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
@@ -180,6 +186,8 @@ export const adminOperatorContractRouter = router({
           organizationId: operatorContract.organizationId,
           businessEntityId: operatorContract.businessEntityId,
           machineId: operatorContract.machineId,
+          machineInternalName: machine.internalName,
+          machineOrgDisplayName: organizationMachineDisplayName.orgDisplayName,
           currentVersionId: operatorContract.currentVersionId,
           createdAt: operatorContract.createdAt,
           updatedAt: operatorContract.updatedAt,
@@ -197,6 +205,20 @@ export const adminOperatorContractRouter = router({
         .innerJoin(
           operatorContractVersion,
           eq(operatorContract.currentVersionId, operatorContractVersion.id),
+        )
+        .innerJoin(machine, eq(operatorContract.machineId, machine.id))
+        .leftJoin(
+          organizationMachineDisplayName,
+          and(
+            eq(
+              organizationMachineDisplayName.organizationId,
+              operatorContract.organizationId,
+            ),
+            eq(
+              organizationMachineDisplayName.machineId,
+              operatorContract.machineId,
+            ),
+          ),
         );
 
       const rows =
@@ -309,6 +331,10 @@ export const adminOperatorContractRouter = router({
           .update(operatorContract)
           .set({ currentVersionId: versionId })
           .where(eq(operatorContract.id, baseId));
+
+        await ensureOrganizationMachineDisplayNames(tx, input.organizationId, [
+          input.machineId,
+        ]);
       });
 
       return { contractId: baseId, versionId };

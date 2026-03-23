@@ -75,11 +75,16 @@ function OperatorMachinesPage() {
                         </span>
                       ) : null}
                     </div>
-                    <CardTitle className="font-mono text-sm leading-tight">
-                      {m.id}
+                    <CardTitle className="text-base font-medium leading-tight">
+                      {m.orgDisplayName}
                     </CardTitle>
                     <CardDescription>
                       Model {m.versionNumber}
+                      {m.internalName.trim() ? (
+                        <span className="block text-[10px] text-muted-foreground">
+                          Internal: {m.internalName}
+                        </span>
+                      ) : null}
                     </CardDescription>
                   </CardHeader>
                   {m.comments.trim() ? (

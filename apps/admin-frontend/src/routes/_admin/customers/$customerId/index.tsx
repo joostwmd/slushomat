@@ -167,7 +167,7 @@ function CustomerDetailPage() {
     () =>
       (machinesQuery.data ?? []).map((m) => ({
         id: m.machineId,
-        label: `${m.machineId.slice(0, 8)}…`,
+        label: `${m.orgDisplayName} (${m.internalName.trim() || "Unnamed"})`,
       })),
     [machinesQuery.data],
   );
@@ -178,6 +178,7 @@ function CustomerDetailPage() {
       id: r.id,
       purchasedAt: r.purchasedAt,
       machineId: r.machineId,
+      machineLabel: r.machineLabel,
       slot: r.slot,
       productName: r.productName,
       amountInCents: r.amountInCents,
@@ -391,7 +392,7 @@ function CustomerDetailPage() {
               <thead>
                 <tr className="border-b border-border bg-muted/30">
                   <th className="p-2 text-left font-medium text-muted-foreground">
-                    Machine
+                    Names
                   </th>
                   <th className="p-2 text-left font-medium text-muted-foreground">
                     Version
@@ -419,7 +420,16 @@ function CustomerDetailPage() {
                       })
                     }
                   >
-                    <td className="p-2 font-mono text-[10px]">{m.machineId}</td>
+                    <td className="p-2">
+                      <div className="space-y-0.5 text-xs">
+                        <div className="font-medium">
+                          {m.orgDisplayName}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          Internal: {m.internalName.trim() || "—"}
+                        </div>
+                      </div>
+                    </td>
                     <td className="p-2">{m.versionNumber}</td>
                     <td className="p-2">
                       <StatusBadge status={m.contractStatus} />

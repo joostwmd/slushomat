@@ -32,11 +32,6 @@ const SECTION_LABEL: Record<
   purchases: "Purchases",
 };
 
-function shortId(id: string, head = 8, tail = 4): string {
-  if (id.length <= head + tail + 1) return id;
-  return `${id.slice(0, head)}…${id.slice(-tail)}`;
-}
-
 function parseOrgScoped(pathname: string): {
   orgSlug: string;
   section: keyof typeof SECTION_LABEL;
@@ -109,8 +104,8 @@ export function OperatorBreadcrumbs() {
         const machineLabel = machineQuery.isPending
           ? "…"
           : machineQuery.isSuccess
-            ? `Model ${machineQuery.data.versionNumber}`
-            : `Machine ${shortId(machineId)}`;
+            ? machineQuery.data.orgDisplayName
+            : "Machine";
 
         return [
           ...base,
@@ -128,7 +123,7 @@ export function OperatorBreadcrumbs() {
 
     return [{ label: "Operator" }];
   }, [
-    machineQuery.data?.versionNumber,
+    machineQuery.data?.orgDisplayName,
     machineQuery.isPending,
     machineQuery.isSuccess,
     pathname,

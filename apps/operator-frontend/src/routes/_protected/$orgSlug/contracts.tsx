@@ -19,11 +19,18 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@slushomat/ui/base/sheet";
-import { Input } from "@slushomat/ui/base/input";
 import { Label } from "@slushomat/ui/base/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@slushomat/ui/base/select";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { trpc, trpcClient } from "@/utils/trpc";
 
@@ -38,6 +45,8 @@ export const Route = createFileRoute("/_protected/$orgSlug/contracts")({
   }),
   component: OperatorContractsPage,
 });
+
+const MACHINE_FILTER_ALL = "__all_machines__";
 
 function bpToPercent(bp: number): string {
   return (bp / 100).toFixed(2);
@@ -67,6 +76,28 @@ function OperatorContractsPage() {
       machineId: machineFilter.trim() || undefined,
     }),
   );
+
+  const machinesQuery = useQuery(
+    trpc.operator.machine.list.queryOptions({ orgSlug }),
+  );
+
+  const machineFilterSelectItems = useMemo(() => {
+    const items: Record<string, ReactNode> = {
+      [MACHINE_FILTER_ALL]: "All machines",
+    };
+    for (const m of machinesQuery.data ?? []) {
+      items[m.id] = m.orgDisplayName;
+    }
+    return items;
+  }, [machinesQuery.data]);
+
+  const machineNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const m of machinesQuery.data ?? []) {
+      map.set(m.id, m.orgDisplayName);
+    }
+    return map;
+  }, [machinesQuery.data]);
 
   const [detailId, setDetailId] = useState<string | null>(null);
   const detailQuery = useQuery({
@@ -107,13 +138,30 @@ function OperatorContractsPage() {
         </CardHeader>
         <CardContent>
           <div className="grid max-w-md gap-1.5">
-            <Label>Machine ID (optional exact match)</Label>
-            <Input
-              className="h-8 rounded-none text-xs"
-              value={machineFilter}
-              onChange={(e) => setMachineFilter(e.target.value)}
-              placeholder="Leave empty for all contracts in this org"
-            />
+            <Label>Machine</Label>
+            <Select
+              items={machineFilterSelectItems}
+              value={machineFilter.trim() || MACHINE_FILTER_ALL}
+              onValueChange={(v) =>
+                setMachineFilter(
+                  v === MACHINE_FILTER_ALL || v == null ? "" : v,
+                )
+              }
+            >
+              <SelectTrigger className="h-8 rounded-none text-xs">
+                <SelectValue placeholder="All machines" />
+              </SelectTrigger>
+              <SelectContent position="popper" className="rounded-none">
+                <SelectItem value={MACHINE_FILTER_ALL}>
+                  All machines
+                </SelectItem>
+                {(machinesQuery.data ?? []).map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.orgDisplayName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -142,8 +190,8 @@ function OperatorContractsPage() {
                 >
                   <div>
                     <p className="font-medium capitalize">{r.status}</p>
-                    <p className="text-xs text-muted-foreground font-mono">
-                      Machine {r.machineId.slice(0, 12)}…
+                    <p className="text-xs text-muted-foreground">
+                      {machineNameById.get(r.machineId) ?? "Machine"}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       Rent €{(r.monthlyRentInCents / 100).toFixed(2)} · Share{" "}
@@ -170,8 +218,8 @@ function OperatorContractsPage() {
         <SheetContent className="flex w-full max-w-lg flex-col overflow-y-auto rounded-none">
           <SheetHeader>
             <SheetTitle>Contract detail</SheetTitle>
-            <SheetDescription className="font-mono text-xs break-all">
-              {detailId}
+            <SheetDescription>
+              Versions and PDFs for this contract.
             </SheetDescription>
           </SheetHeader>
           {detailQuery.data ? (

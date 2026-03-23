@@ -1,9 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { db } from "@slushomat/db";
-import { machine, machineDeployment } from "@slushomat/db/schema";
+import {
+  businessEntity,
+  machine,
+  machineDeployment,
+} from "@slushomat/db/schema";
 import {
   assertBusinessEntityBelongsToOrg,
   getOpenDeploymentForMachine,
@@ -15,11 +19,27 @@ const deploymentRow = z.object({
   id: z.string(),
   machineId: z.string(),
   businessEntityId: z.string(),
+  machineDisplayName: z.string(),
+  businessEntityDisplayName: z.string(),
   startedAt: z.date(),
   endedAt: z.date().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
+
+const deploymentSelectShape = {
+  id: machineDeployment.id,
+  machineId: machineDeployment.machineId,
+  businessEntityId: machineDeployment.businessEntityId,
+  machineDisplayName: sql<string>`coalesce(nullif(trim(${machine.internalName}), ''), 'Unnamed machine')`.as(
+    "machine_display_name",
+  ),
+  businessEntityDisplayName: businessEntity.name,
+  startedAt: machineDeployment.startedAt,
+  endedAt: machineDeployment.endedAt,
+  createdAt: machineDeployment.createdAt,
+  updatedAt: machineDeployment.updatedAt,
+} as const;
 
 async function requireMachine(ctx: { db: typeof db }, machineId: string) {
   const [row] = await ctx.db
@@ -40,8 +60,13 @@ export const adminMachineDeploymentRouter = router({
     .output(z.array(deploymentRow))
     .query(async ({ ctx }) => {
       return ctx.db
-        .select()
+        .select(deploymentSelectShape)
         .from(machineDeployment)
+        .innerJoin(machine, eq(machineDeployment.machineId, machine.id))
+        .innerJoin(
+          businessEntity,
+          eq(machineDeployment.businessEntityId, businessEntity.id),
+        )
         .orderBy(desc(machineDeployment.startedAt));
     }),
 
@@ -50,8 +75,13 @@ export const adminMachineDeploymentRouter = router({
     .output(z.array(deploymentRow))
     .query(async ({ ctx, input }) => {
       return ctx.db
-        .select()
+        .select(deploymentSelectShape)
         .from(machineDeployment)
+        .innerJoin(machine, eq(machineDeployment.machineId, machine.id))
+        .innerJoin(
+          businessEntity,
+          eq(machineDeployment.businessEntityId, businessEntity.id),
+        )
         .where(
           and(
             eq(machineDeployment.machineId, input.machineId),
@@ -80,7 +110,7 @@ export const adminMachineDeploymentRouter = router({
 
       const id = randomUUID();
 
-      const row = await ctx.db.transaction(async (tx) => {
+      await ctx.db.transaction(async (tx) => {
         const existing = await getOpenDeploymentForMachine(tx, input.machineId);
         if (existing) {
           await tx
@@ -89,24 +119,31 @@ export const adminMachineDeploymentRouter = router({
             .where(eq(machineDeployment.id, existing.id));
         }
 
-        const [inserted] = await tx
-          .insert(machineDeployment)
-          .values({
-            id,
-            machineId: input.machineId,
-            businessEntityId: input.businessEntityId,
-          })
-          .returning();
-        return inserted;
+        await tx.insert(machineDeployment).values({
+          id,
+          machineId: input.machineId,
+          businessEntityId: input.businessEntityId,
+        });
       });
 
-      if (!row) {
+      const [enriched] = await ctx.db
+        .select(deploymentSelectShape)
+        .from(machineDeployment)
+        .innerJoin(machine, eq(machineDeployment.machineId, machine.id))
+        .innerJoin(
+          businessEntity,
+          eq(machineDeployment.businessEntityId, businessEntity.id),
+        )
+        .where(eq(machineDeployment.id, id))
+        .limit(1);
+
+      if (!enriched) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to start deployment",
+          message: "Failed to load deployment after start",
         });
       }
-      return row;
+      return enriched;
     }),
 
   end: adminProcedure
@@ -130,17 +167,35 @@ export const adminMachineDeploymentRouter = router({
           message: "Deployment is already ended",
         });
       }
-      const [row] = await ctx.db
+      const [updated] = await ctx.db
         .update(machineDeployment)
         .set({ endedAt: new Date() })
         .where(eq(machineDeployment.id, input.deploymentId))
-        .returning();
-      if (!row) {
+        .returning({ id: machineDeployment.id });
+      if (!updated) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to end deployment",
         });
       }
-      return row;
+
+      const [enriched] = await ctx.db
+        .select(deploymentSelectShape)
+        .from(machineDeployment)
+        .innerJoin(machine, eq(machineDeployment.machineId, machine.id))
+        .innerJoin(
+          businessEntity,
+          eq(machineDeployment.businessEntityId, businessEntity.id),
+        )
+        .where(eq(machineDeployment.id, input.deploymentId))
+        .limit(1);
+
+      if (!enriched) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to load deployment after end",
+        });
+      }
+      return enriched;
     }),
 });

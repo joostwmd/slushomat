@@ -103,6 +103,7 @@ function AdminMachineDetailPage() {
       id: r.id,
       purchasedAt: r.purchasedAt,
       machineId: r.machineId,
+      machineLabel: r.machineLabel,
       slot: r.slot,
       productName: r.productName,
       amountInCents: r.amountInCents,
@@ -119,12 +120,29 @@ function AdminMachineDetailPage() {
           <p className="text-xs text-muted-foreground">
             {org?.name ?? "Organization"}
           </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="font-mono text-lg font-medium">{machineId}</h1>
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-lg font-medium">
+                {machineRow?.orgDisplayName ??
+                  (machineRow?.internalName.trim() || "Unnamed machine")}
+              </h1>
+              {machineRow ? (
+                <span className="rounded-none border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
+                  v{machineRow.versionNumber}
+                </span>
+              ) : null}
+            </div>
             {machineRow ? (
-              <span className="rounded-none border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
-                v{machineRow.versionNumber}
-              </span>
+              <p className="text-xs text-muted-foreground">
+                Internal:{" "}
+                <span className="text-foreground">
+                  {machineRow.internalName.trim() || "—"}
+                </span>
+                {" · Operator org name: "}
+                <span className="text-foreground">
+                  {machineRow.orgDisplayName}
+                </span>
+              </p>
             ) : null}
           </div>
         </div>

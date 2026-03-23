@@ -7,3 +7,4 @@ export * from "./business-entity";
 export * from "./operator-contract";
 export * from "./machine-lifecycle";
 export * from "./purchase";
+export * from "./organization-machine-display";

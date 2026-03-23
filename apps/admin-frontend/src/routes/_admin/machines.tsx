@@ -10,6 +10,13 @@ import {
 import { Input } from "@slushomat/ui/base/input";
 import { Label } from "@slushomat/ui/base/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@slushomat/ui/base/select";
+import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -20,7 +27,8 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { cn } from "@slushomat/ui/lib/utils";
-import { useState } from "react";
+import type { ReactNode } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { trpc } from "@/utils/trpc";
 
@@ -49,6 +57,7 @@ type MachineListRow = {
   id: string;
   machineVersionId: string;
   versionNumber: string;
+  internalName: string;
   comments: string;
   disabled: boolean;
   createdAt: Date;
@@ -68,6 +77,7 @@ function MachinesPage() {
   const [machineSheetOpen, setMachineSheetOpen] = useState(false);
   const [machineEditId, setMachineEditId] = useState<string | null>(null);
   const [machineVersionId, setMachineVersionId] = useState("");
+  const [machineInternalName, setMachineInternalName] = useState("");
   const [machineComments, setMachineComments] = useState("");
   const [machineDisabled, setMachineDisabled] = useState(false);
   const [apiKeySecret, setApiKeySecret] = useState<string | null>(null);
@@ -96,6 +106,7 @@ function MachinesPage() {
   const openCreateMachine = () => {
     setMachineEditId(null);
     setMachineVersionId(versionsQuery.data?.[0]?.id ?? "");
+    setMachineInternalName("");
     setMachineComments("");
     setMachineDisabled(false);
     setApiKeySecret(null);
@@ -105,6 +116,7 @@ function MachinesPage() {
   const openEditMachine = (m: MachineListRow) => {
     setMachineEditId(m.id);
     setMachineVersionId(m.machineVersionId);
+    setMachineInternalName(m.internalName);
     setMachineComments(m.comments);
     setMachineDisabled(m.disabled);
     setApiKeySecret(null);
@@ -234,16 +246,23 @@ function MachinesPage() {
       toast.error("Select a machine version.");
       return;
     }
+    const internalName = machineInternalName.trim();
+    if (!internalName) {
+      toast.error("Internal name is required.");
+      return;
+    }
     if (machineEditId) {
       updateMachineMutation.mutate({
         id: machineEditId,
         machineVersionId,
+        internalName,
         comments: machineComments,
         disabled: machineDisabled,
       });
     } else {
       createMachineMutation.mutate({
         machineVersionId,
+        internalName,
         comments: machineComments,
         disabled: machineDisabled,
       });
@@ -251,6 +270,13 @@ function MachinesPage() {
   };
 
   const versions = versionsQuery.data ?? [];
+  const versionSelectItems = useMemo(() => {
+    const items: Record<string, ReactNode> = {};
+    for (const v of versions) {
+      items[v.id] = v.versionNumber;
+    }
+    return items;
+  }, [versions]);
   const machines: MachineListRow[] = machinesQuery.data ?? [];
   const versionsLoading = versionsQuery.isPending;
   const machinesLoading = machinesQuery.isPending;
@@ -378,7 +404,8 @@ function MachinesPage() {
                 <table className="w-full text-left text-xs">
                   <thead className="border-b border-border bg-muted/40">
                     <tr>
-                      <th className="px-3 py-2 font-medium">Id</th>
+                      <th className="px-3 py-2 font-medium">Device</th>
+                      <th className="px-3 py-2 font-medium">Internal name</th>
                       <th className="px-3 py-2 font-medium">Version</th>
                       <th className="px-3 py-2 font-medium">Comments</th>
                       <th className="px-3 py-2 font-medium">Status</th>
@@ -390,28 +417,31 @@ function MachinesPage() {
                   <tbody>
                     {machines.map((m) => (
                       <tr key={m.id} className="border-b border-border last:border-0">
-                        <td className="px-3 py-2 font-mono text-[11px]">
+                        <td className="px-3 py-2">
                           <div className="flex flex-wrap items-center gap-2">
                             <Link
                               to="/machines/$machineId"
                               params={{ machineId: m.id }}
                               className="underline-offset-2 hover:underline"
-                              title="Machine details"
+                              title="Open machine"
                             >
-                              {m.id.slice(0, 8)}…
+                              View
                             </Link>
                             <button
                               type="button"
                               className="text-muted-foreground underline-offset-2 hover:underline"
-                              title="Copy full id"
+                              title="Copy device id (for API / hardware)"
                               onClick={async () => {
                                 await navigator.clipboard.writeText(m.id);
-                                toast.success("Id copied");
+                                toast.success("Device id copied");
                               }}
                             >
-                              Copy
+                              Copy id
                             </button>
                           </div>
+                        </td>
+                        <td className="max-w-[160px] px-3 py-2 font-medium leading-tight">
+                          {m.internalName.trim() || "—"}
                         </td>
                         <td className="px-3 py-2 font-mono">{m.versionNumber}</td>
                         <td
@@ -540,27 +570,43 @@ function MachinesPage() {
                   {machineEditId ? "Edit machine" : "New machine"}
                 </SheetTitle>
                 <SheetDescription>
-                  Assign a catalog version and optional comments.
+                  Internal name for your team; comments are separate from
+                  operator-facing names.
                 </SheetDescription>
               </SheetHeader>
               <div className="flex flex-col gap-4 px-4 pb-4">
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="m-version">Machine version</Label>
-                <select
-                  id="m-version"
-                  className={cn(
-                    "h-8 w-full rounded-none border border-input bg-transparent px-2.5 text-xs outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 dark:bg-input/30",
-                  )}
-                  value={machineVersionId}
-                  onChange={(e) => setMachineVersionId(e.target.value)}
+                <Label htmlFor="m-internal">Internal name</Label>
+                <Input
+                  id="m-internal"
+                  className="h-8 rounded-none text-xs"
+                  value={machineInternalName}
+                  onChange={(e) => setMachineInternalName(e.target.value)}
+                  placeholder="e.g. Arena concourse west"
                   required
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="m-version">Machine version</Label>
+                <Select
+                  items={versionSelectItems}
+                  value={machineVersionId}
+                  onValueChange={(v) => setMachineVersionId(v ?? "")}
                 >
-                  {versions.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.versionNumber}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger
+                    id="m-version"
+                    className="h-8 w-full rounded-none text-xs"
+                  >
+                    <SelectValue placeholder="Select version" />
+                  </SelectTrigger>
+                  <SelectContent position="popper" className="rounded-none">
+                    {versions.map((v) => (
+                      <SelectItem key={v.id} value={v.id}>
+                        {v.versionNumber}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="m-comments">Comments</Label>
