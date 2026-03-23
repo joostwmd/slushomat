@@ -28,6 +28,13 @@ import {
   YAxis,
 } from "recharts";
 
+import {
+  hasDailyBarData,
+  hasGrossTotalsData,
+  hasMonthlyFinancialsData,
+  hasPositivePieValues,
+  hasProductByDayData,
+} from "../lib/analytics-chart-has-data";
 import { AnalyticsChartShell } from "./analytics-chart-shell";
 import type { OrgAnalyticsDashboardData } from "./analytics-mock-data";
 import { mockOrgAnalyticsData } from "./analytics-mock-data";
@@ -141,28 +148,36 @@ export function AnalyticsDashboard({
     value: e.grossCents,
   }));
 
+  const dailyChartEmpty = !hasDailyBarData(data.dailyTotals);
+  const productLinesEmpty = !hasProductByDayData(data.productByDay);
+  const machinePieEmpty = !hasGrossTotalsData(data.machineTotals);
+  const productPieEmpty = !hasPositivePieValues(
+    productPieData.map((p) => p.value),
+  );
+  const entityPieEmpty = !hasGrossTotalsData(data.entityTotals);
+  const revenueAreaEmpty = !hasMonthlyFinancialsData(data.monthlyFinancials);
+
   return (
     <Card className="gap-0 overflow-hidden">
-      <CardHeader className="border-b border-border">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
+      <CardHeader className="gap-0 space-y-0 border-b border-border pb-0">
+        <div className="space-y-2 pb-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <CardTitle>Analytics</CardTitle>
-            <CardDescription>
-              Revenue and purchase mix for the selected period (hover for
-              values; charts do not filter the table below).
-            </CardDescription>
-          </div>
-          <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-3">
             {lastUpdated ? (
-              <span className="inline-flex w-fit rounded-none bg-secondary px-2 py-1 text-xs text-secondary-foreground">
-                Last updated: {lastUpdated}
+              <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                Updated {lastUpdated}
               </span>
             ) : null}
-            {headerSlot ? (
-              <div className="flex flex-wrap items-center gap-2">{headerSlot}</div>
-            ) : null}
           </div>
+          <CardDescription>
+            Revenue and mix for the selected period. Charts don’t filter the table.
+          </CardDescription>
         </div>
+        {headerSlot ? (
+          <div className="-mx-4 border-t border-border bg-muted/25 px-4 py-3">
+            {headerSlot}
+          </div>
+        ) : null}
       </CardHeader>
       <CardContent className="pt-6">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -170,6 +185,8 @@ export function AnalyticsDashboard({
             chartId="daily-bar"
             title="Revenue & purchases per day"
             description="Gross sales in EUR; bar height reflects purchase count scale (secondary axis)."
+            empty={dailyChartEmpty}
+            emptyDescription="No revenue or purchases in this period."
             loading={chartLoading?.["daily-bar"]}
             onRetry={onChartRetry}
           >
@@ -224,6 +241,8 @@ export function AnalyticsDashboard({
             chartId="product-lines"
             title="Purchases by product"
             description="Gross cents per product per day."
+            empty={productLinesEmpty}
+            emptyDescription="No product-level sales in this period."
             loading={chartLoading?.["product-lines"]}
             onRetry={onChartRetry}
           >
@@ -271,6 +290,8 @@ export function AnalyticsDashboard({
           <AnalyticsChartShell
             chartId="machine-pie"
             title="Sales by machine"
+            empty={machinePieEmpty}
+            emptyDescription="No machine sales in this period."
             loading={chartLoading?.["machine-pie"]}
             onRetry={onChartRetry}
           >
@@ -306,6 +327,8 @@ export function AnalyticsDashboard({
           <AnalyticsChartShell
             chartId="product-pie"
             title="Sales by product"
+            empty={productPieEmpty}
+            emptyDescription="No product sales in this period."
             loading={chartLoading?.["product-pie"]}
             onRetry={onChartRetry}
           >
@@ -341,6 +364,8 @@ export function AnalyticsDashboard({
           <AnalyticsChartShell
             chartId="entity-pie"
             title="Sales by business entity"
+            empty={entityPieEmpty}
+            emptyDescription="No entity-level sales in this period."
             loading={chartLoading?.["entity-pie"]}
             onRetry={onChartRetry}
           >
@@ -377,6 +402,8 @@ export function AnalyticsDashboard({
             chartId="revenue-area"
             title="Revenue vs costs (monthly)"
             description="Gross revenue, platform share, and rent (mock rent where unavailable)."
+            empty={revenueAreaEmpty}
+            emptyDescription="No monthly financial data to show yet."
             loading={chartLoading?.["revenue-area"]}
             onRetry={onChartRetry}
           >

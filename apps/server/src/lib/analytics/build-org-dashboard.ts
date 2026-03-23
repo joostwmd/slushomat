@@ -15,7 +15,6 @@ import {
 } from "@slushomat/db/schema";
 
 import { bigToNumber, bucketKey } from "./analytics-utils";
-import type { AnalyticsMode } from "./berlin-range";
 import { compareIsoDate, eachIsoDateInclusive } from "./date-helpers";
 import {
   berlinCalendarMonthStart,
@@ -34,8 +33,6 @@ import {
 
 export type OrgDashboardFilters = {
   organizationId: string;
-  mode: AnalyticsMode;
-  anchorDate: string;
   range: { startDate: string; endDate: string; berlinToday: string };
   machineId?: string;
   businessEntityId?: string;
@@ -80,8 +77,6 @@ export type MonthlyFinancial = {
 
 export type OrgDashboardPayload = {
   meta: {
-    mode: AnalyticsMode;
-    anchorDate: string;
     startDate: string;
     endDate: string;
     berlinToday: string;
@@ -167,8 +162,6 @@ export async function buildOrgDashboard(
 ): Promise<OrgDashboardPayload> {
   const {
     organizationId,
-    mode,
-    anchorDate,
     range,
     machineId,
     businessEntityId,
@@ -464,8 +457,6 @@ export async function buildOrgDashboard(
 
   return {
     meta: {
-      mode,
-      anchorDate,
       startDate,
       endDate,
       berlinToday,

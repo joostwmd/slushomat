@@ -6,7 +6,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@slushomat/ui/base/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@slushomat/ui/base/empty";
 import { Skeleton } from "@slushomat/ui/base/skeleton";
+import { ChartNoAxesCombined } from "lucide-react";
 import * as React from "react";
 
 export type AnalyticsChartShellProps = {
@@ -14,6 +22,10 @@ export type AnalyticsChartShellProps = {
   title: string;
   description?: string;
   loading?: boolean;
+  /** When true (and not loading), show empty state instead of the chart. */
+  empty?: boolean;
+  emptyTitle?: string;
+  emptyDescription?: string;
   onRetry?: (chartId: string) => void;
   children: React.ReactNode;
 };
@@ -67,6 +79,9 @@ export function AnalyticsChartShell({
   title,
   description,
   loading,
+  empty = false,
+  emptyTitle = "Not enough data",
+  emptyDescription = "Nothing recorded for this time range. Try another period or check back later.",
   onRetry,
   children,
 }: AnalyticsChartShellProps) {
@@ -81,6 +96,16 @@ export function AnalyticsChartShell({
       <CardContent className="pt-4">
         {loading ? (
           <Skeleton className="aspect-video w-full max-h-[280px]" />
+        ) : empty ? (
+          <Empty className="min-h-[240px] justify-center">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <ChartNoAxesCombined />
+              </EmptyMedia>
+              <EmptyTitle>{emptyTitle}</EmptyTitle>
+              <EmptyDescription>{emptyDescription}</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <AnalyticsChartErrorBoundary
             chartId={chartId}

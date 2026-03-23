@@ -26,6 +26,11 @@ import {
   YAxis,
 } from "recharts";
 
+import {
+  hasDailyBarData,
+  hasGrossTotalsData,
+  hasProductByDayData,
+} from "../lib/analytics-chart-has-data";
 import { AnalyticsChartShell } from "./analytics-chart-shell";
 import type { MachineAnalyticsDashboardData } from "./analytics-mock-data";
 import { mockMachineAnalyticsData } from "./analytics-mock-data";
@@ -115,33 +120,40 @@ export function MachineAnalyticsDashboard({
     value: p.grossCents,
   }));
 
+  const dailyChartEmpty = !hasDailyBarData(data.dailyTotals);
+  const productLinesEmpty = !hasProductByDayData(data.productByDay);
+  const productMixEmpty = !hasGrossTotalsData(data.productTotals);
+
   return (
     <Card className="gap-0 overflow-hidden">
-      <CardHeader className="border-b border-border">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
+      <CardHeader className="gap-0 space-y-0 border-b border-border pb-0">
+        <div className="space-y-2 pb-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <CardTitle>Machine analytics</CardTitle>
-            <CardDescription>
-              Data for this machine only. Hover tooltips; no table filtering.
-            </CardDescription>
-          </div>
-          <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-3">
             {lastUpdated ? (
-              <span className="inline-flex w-fit rounded-none bg-secondary px-2 py-1 text-xs text-secondary-foreground">
-                Last updated: {lastUpdated}
+              <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                Updated {lastUpdated}
               </span>
             ) : null}
-            {headerSlot ? (
-              <div className="flex flex-wrap items-center gap-2">{headerSlot}</div>
-            ) : null}
           </div>
+          <CardDescription>
+            This machine only. Hover charts for values; table is not filtered by the
+            range.
+          </CardDescription>
         </div>
+        {headerSlot ? (
+          <div className="-mx-4 border-t border-border bg-muted/25 px-4 py-3">
+            {headerSlot}
+          </div>
+        ) : null}
       </CardHeader>
       <CardContent className="pt-6">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <AnalyticsChartShell
             chartId="machine-daily-bar"
             title="Revenue & purchases per day"
+            empty={dailyChartEmpty}
+            emptyDescription="No revenue or purchases in this period for this machine."
             loading={chartLoading?.["machine-daily-bar"]}
             onRetry={onChartRetry}
           >
@@ -195,6 +207,8 @@ export function MachineAnalyticsDashboard({
           <AnalyticsChartShell
             chartId="machine-product-lines"
             title="Purchases by product"
+            empty={productLinesEmpty}
+            emptyDescription="No product-level sales in this period."
             loading={chartLoading?.["machine-product-lines"]}
             onRetry={onChartRetry}
           >
@@ -243,6 +257,8 @@ export function MachineAnalyticsDashboard({
           <AnalyticsChartShell
             chartId="machine-product-pie"
             title="Product mix (period)"
+            empty={productMixEmpty}
+            emptyDescription="No product mix to show for this period."
             loading={chartLoading?.["machine-product-pie"]}
             onRetry={onChartRetry}
           >

@@ -11,7 +11,6 @@ import {
 } from "@slushomat/db/schema";
 
 import { bigToNumber, bucketKey } from "./analytics-utils";
-import type { AnalyticsMode } from "./berlin-range";
 import { compareIsoDate, eachIsoDateInclusive } from "./date-helpers";
 import {
   machineAnalyticsLabel,
@@ -23,8 +22,6 @@ import {
 
 export type PlatformDashboardPayload = {
   meta: {
-    mode: AnalyticsMode;
-    anchorDate: string;
     startDate: string;
     endDate: string;
     berlinToday: string;
@@ -91,12 +88,10 @@ async function fetchMvDailyPlatform(
 export async function buildPlatformDashboard(
   db: NodePgDatabase<typeof schema>,
   input: {
-    mode: AnalyticsMode;
-    anchorDate: string;
     range: { startDate: string; endDate: string; berlinToday: string };
   },
 ): Promise<PlatformDashboardPayload> {
-  const { mode, anchorDate, range } = input;
+  const { range } = input;
   const { startDate, endDate, berlinToday } = range;
   const allDays = eachIsoDateInclusive(startDate, endDate);
 
@@ -257,8 +252,6 @@ export async function buildPlatformDashboard(
 
   return {
     meta: {
-      mode,
-      anchorDate,
       startDate,
       endDate,
       berlinToday,

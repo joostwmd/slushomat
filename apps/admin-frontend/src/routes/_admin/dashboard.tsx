@@ -1,15 +1,15 @@
 import { buttonVariants } from "@slushomat/ui/base/button";
 import { AdminPlatformAnalyticsDashboard } from "@slushomat/ui/composite/admin-platform-analytics-dashboard";
+import {
+  AnalyticsRangePicker,
+  analyticsWindowToTrpcInput,
+  defaultAnalyticsWindow,
+} from "@slushomat/ui/composite/analytics-range-picker";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { cn } from "@slushomat/ui/lib/utils";
 
-import {
-  AnalyticsTimeControls,
-  localTodayIsoDate,
-  type AnalyticsPeriod,
-} from "@/components/analytics-time-controls";
 import {
   allChartsLoading,
   emptyAdminPlatformData,
@@ -22,16 +22,12 @@ export const Route = createFileRoute("/_admin/dashboard")({
 });
 
 function AdminDashboard() {
-  const [period, setPeriod] = useState<AnalyticsPeriod>(() => ({
-    mode: "week",
-    anchorDate: localTodayIsoDate(),
-  }));
+  const [analyticsWindow, setAnalyticsWindow] = useState(defaultAnalyticsWindow);
 
   const platformQuery = useQuery(
-    trpc.admin.analytics.platformDashboard.queryOptions({
-      mode: period.mode,
-      anchorDate: period.anchorDate,
-    }),
+    trpc.admin.analytics.platformDashboard.queryOptions(
+      analyticsWindowToTrpcInput(analyticsWindow),
+    ),
   );
 
   const platformData = platformQuery.data
@@ -54,7 +50,7 @@ function AdminDashboard() {
     <div className="container mx-auto max-w-6xl px-4 py-8">
       <h1 className="mb-2 text-xl font-medium">Admin dashboard</h1>
       <p className="mb-6 text-sm text-muted-foreground">
-        Platform-wide analytics (Europe/Berlin calendar periods). Customer pages
+        Platform-wide analytics (Europe/Berlin business calendar). Customer pages
         show org-scoped charts only.
       </p>
 
@@ -95,10 +91,9 @@ function AdminDashboard() {
       <AdminPlatformAnalyticsDashboard
         data={platformData}
         headerSlot={
-          <AnalyticsTimeControls
-            idPrefix="admin-platform"
-            value={period}
-            onChange={setPeriod}
+          <AnalyticsRangePicker
+            value={analyticsWindow}
+            onChange={setAnalyticsWindow}
           />
         }
         lastUpdated={lastUpdated}

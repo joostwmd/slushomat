@@ -3,16 +3,16 @@ import {
   assertUserMemberOfOrg,
   getOrganizationIdForSlug,
 } from "../../lib/org-scope";
-import { resolveBerlinRange } from "../../lib/analytics/berlin-range";
+import {
+  analyticsWindowFieldsSchema,
+  toAnalyticsWindowInput,
+} from "../../lib/analytics/analytics-window-schema";
+import { resolveBerlinAnalyticsWindow } from "../../lib/analytics/berlin-range";
 import { buildOrgDashboard } from "../../lib/analytics/build-org-dashboard";
 import { router } from "../init";
 import { operatorProcedure } from "../procedures";
 
-const analyticsModeSchema = z.enum(["day", "week", "month"]);
-
 const metaSchema = z.object({
-  mode: analyticsModeSchema,
-  anchorDate: z.string(),
   startDate: z.string(),
   endDate: z.string(),
   berlinToday: z.string(),
@@ -65,21 +65,20 @@ const orgDashboardOutputSchema = z.object({
   monthlyFinancials: z.array(monthlyFinancialSchema),
 });
 
-const orgDashboardInputSchema = z.object({
-  orgSlug: z.string().min(1),
-  mode: analyticsModeSchema,
-  /** Berlin calendar day `YYYY-MM-DD` */
-  anchorDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  machineId: z.string().optional(),
-  businessEntityId: z.string().optional(),
-});
+const orgDashboardInputSchema = analyticsWindowFieldsSchema.and(
+  z.object({
+    orgSlug: z.string().min(1),
+    machineId: z.string().optional(),
+    businessEntityId: z.string().optional(),
+  }),
+);
 
-const machineDashboardInputSchema = z.object({
-  orgSlug: z.string().min(1),
-  machineId: z.string().min(1),
-  mode: analyticsModeSchema,
-  anchorDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-});
+const machineDashboardInputSchema = analyticsWindowFieldsSchema.and(
+  z.object({
+    orgSlug: z.string().min(1),
+    machineId: z.string().min(1),
+  }),
+);
 
 export const operatorAnalyticsRouter = router({
   orgDashboard: operatorProcedure
@@ -92,16 +91,13 @@ export const operatorAnalyticsRouter = router({
       );
       await assertUserMemberOfOrg(ctx.db, ctx.user.id, organizationId);
 
-      const range = await resolveBerlinRange(
+      const range = await resolveBerlinAnalyticsWindow(
         ctx.db,
-        input.mode,
-        input.anchorDate,
+        toAnalyticsWindowInput(input),
       );
 
       return buildOrgDashboard(ctx.db, {
         organizationId,
-        mode: input.mode,
-        anchorDate: input.anchorDate,
         range,
         machineId: input.machineId,
         businessEntityId: input.businessEntityId,
@@ -119,16 +115,13 @@ export const operatorAnalyticsRouter = router({
       );
       await assertUserMemberOfOrg(ctx.db, ctx.user.id, organizationId);
 
-      const range = await resolveBerlinRange(
+      const range = await resolveBerlinAnalyticsWindow(
         ctx.db,
-        input.mode,
-        input.anchorDate,
+        toAnalyticsWindowInput(input),
       );
 
       return buildOrgDashboard(ctx.db, {
         organizationId,
-        mode: input.mode,
-        anchorDate: input.anchorDate,
         range,
         machineId: input.machineId,
         machineScope: true,

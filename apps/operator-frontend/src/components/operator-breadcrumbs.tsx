@@ -37,16 +37,6 @@ function parseOrgScoped(pathname: string): {
   section: keyof typeof SECTION_LABEL;
   machineId: string | null;
 } | null {
-  const machinePurchases = pathname.match(
-    /^\/([^/]+)\/machines\/([^/]+)\/purchases\/?$/,
-  );
-  if (machinePurchases) {
-    return {
-      orgSlug: machinePurchases[1]!,
-      section: "machines",
-      machineId: machinePurchases[2]!,
-    };
-  }
   const machineDetail = pathname.match(/^\/([^/]+)\/machines\/([^/]+)\/?$/);
   if (machineDetail) {
     return {

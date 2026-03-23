@@ -1,15 +1,15 @@
 import { z } from "zod";
-import { resolveBerlinRange } from "../../lib/analytics/berlin-range";
+import {
+  analyticsWindowFieldsSchema,
+  toAnalyticsWindowInput,
+} from "../../lib/analytics/analytics-window-schema";
+import { resolveBerlinAnalyticsWindow } from "../../lib/analytics/berlin-range";
 import { buildOrgDashboard } from "../../lib/analytics/build-org-dashboard";
 import { buildPlatformDashboard } from "../../lib/analytics/build-platform-dashboard";
 import { router } from "../init";
 import { adminProcedure } from "../procedures";
 
-const analyticsModeSchema = z.enum(["day", "week", "month"]);
-
 const metaSchema = z.object({
-  mode: analyticsModeSchema,
-  anchorDate: z.string(),
   startDate: z.string(),
   endDate: z.string(),
   berlinToday: z.string(),
@@ -62,20 +62,20 @@ const orgDashboardOutputSchema = z.object({
   monthlyFinancials: z.array(monthlyFinancialSchema),
 });
 
-const orgDashboardInputSchema = z.object({
-  organizationId: z.string().min(1),
-  mode: analyticsModeSchema,
-  anchorDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  machineId: z.string().optional(),
-  businessEntityId: z.string().optional(),
-});
+const orgDashboardInputSchema = analyticsWindowFieldsSchema.and(
+  z.object({
+    organizationId: z.string().min(1),
+    machineId: z.string().optional(),
+    businessEntityId: z.string().optional(),
+  }),
+);
 
-const machineDashboardInputSchema = z.object({
-  organizationId: z.string().min(1),
-  machineId: z.string().min(1),
-  mode: analyticsModeSchema,
-  anchorDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-});
+const machineDashboardInputSchema = analyticsWindowFieldsSchema.and(
+  z.object({
+    organizationId: z.string().min(1),
+    machineId: z.string().min(1),
+  }),
+);
 
 const platformDashboardOutputSchema = z.object({
   meta: metaSchema,
@@ -92,26 +92,20 @@ const platformDashboardOutputSchema = z.object({
   totalPlatformShareCents: z.number(),
 });
 
-const platformDashboardInputSchema = z.object({
-  mode: analyticsModeSchema,
-  anchorDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-});
+const platformDashboardInputSchema = analyticsWindowFieldsSchema;
 
 export const adminAnalyticsRouter = router({
   orgDashboard: adminProcedure
     .input(orgDashboardInputSchema)
     .output(orgDashboardOutputSchema)
     .query(async ({ ctx, input }) => {
-      const range = await resolveBerlinRange(
+      const range = await resolveBerlinAnalyticsWindow(
         ctx.db,
-        input.mode,
-        input.anchorDate,
+        toAnalyticsWindowInput(input),
       );
 
       return buildOrgDashboard(ctx.db, {
         organizationId: input.organizationId,
-        mode: input.mode,
-        anchorDate: input.anchorDate,
         range,
         machineId: input.machineId,
         businessEntityId: input.businessEntityId,
@@ -123,16 +117,13 @@ export const adminAnalyticsRouter = router({
     .input(machineDashboardInputSchema)
     .output(orgDashboardOutputSchema)
     .query(async ({ ctx, input }) => {
-      const range = await resolveBerlinRange(
+      const range = await resolveBerlinAnalyticsWindow(
         ctx.db,
-        input.mode,
-        input.anchorDate,
+        toAnalyticsWindowInput(input),
       );
 
       return buildOrgDashboard(ctx.db, {
         organizationId: input.organizationId,
-        mode: input.mode,
-        anchorDate: input.anchorDate,
         range,
         machineId: input.machineId,
         machineScope: true,
@@ -143,15 +134,12 @@ export const adminAnalyticsRouter = router({
     .input(platformDashboardInputSchema)
     .output(platformDashboardOutputSchema)
     .query(async ({ ctx, input }) => {
-      const range = await resolveBerlinRange(
+      const range = await resolveBerlinAnalyticsWindow(
         ctx.db,
-        input.mode,
-        input.anchorDate,
+        toAnalyticsWindowInput(input),
       );
 
       return buildPlatformDashboard(ctx.db, {
-        mode: input.mode,
-        anchorDate: input.anchorDate,
         range,
       });
     }),

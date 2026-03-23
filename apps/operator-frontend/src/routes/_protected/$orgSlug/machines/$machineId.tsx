@@ -22,6 +22,12 @@ import {
   SelectValue,
 } from "@slushomat/ui/base/select";
 import { exportPurchasesToZip } from "@slushomat/ui/composite/purchases-export";
+import { MachineAnalyticsDashboard } from "@slushomat/ui/composite/machine-analytics-dashboard";
+import {
+  AnalyticsRangePicker,
+  analyticsWindowToTrpcInput,
+  defaultAnalyticsWindow,
+} from "@slushomat/ui/composite/analytics-range-picker";
 import { PurchasesTable } from "@slushomat/ui/composite/purchases-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -30,6 +36,12 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@slushomat/ui/lib/utils";
 
+import {
+  allChartsLoading,
+  emptyOrgAnalyticsData,
+  MACHINE_CHART_IDS,
+} from "@/lib/analytics-empty-data";
+import { orgPayloadToMachineDashboardData } from "@/lib/machine-analytics-map";
 import { trpc } from "@/utils/trpc";
 
 export const Route = createFileRoute(
@@ -77,6 +89,7 @@ function OperatorMachineDetailPage() {
   }>({});
 
   const [orgDisplayNameDraft, setOrgDisplayNameDraft] = useState("");
+  const [analyticsWindow, setAnalyticsWindow] = useState(defaultAnalyticsWindow);
 
   const machineQuery = useQuery({
     ...trpc.operator.machine.get.queryOptions({ orgSlug, machineId }),
@@ -101,6 +114,15 @@ function OperatorMachineDetailPage() {
       startDate: purchaseFilters.dateFrom,
       endDate: purchaseFilters.dateTo,
       limit: 100,
+    }),
+    enabled: machineQuery.isSuccess,
+  });
+
+  const analyticsQuery = useQuery({
+    ...trpc.operator.analytics.machineDashboard.queryOptions({
+      orgSlug,
+      machineId,
+      ...analyticsWindowToTrpcInput(analyticsWindow),
     }),
     enabled: machineQuery.isSuccess,
   });
@@ -197,6 +219,23 @@ function OperatorMachineDetailPage() {
     }));
   }, [purchasesQuery.data]);
 
+  const machineAnalyticsData = analyticsQuery.data
+    ? orgPayloadToMachineDashboardData({
+        dailyTotals: analyticsQuery.data.dailyTotals,
+        productByDay: analyticsQuery.data.productByDay,
+        machineTotals: analyticsQuery.data.machineTotals,
+        entityTotals: analyticsQuery.data.entityTotals,
+        monthlyFinancials: analyticsQuery.data.monthlyFinancials,
+      })
+    : orgPayloadToMachineDashboardData(emptyOrgAnalyticsData);
+
+  const analyticsLastUpdated = analyticsQuery.data
+    ? new Intl.DateTimeFormat("de-DE", {
+        dateStyle: "short",
+        timeStyle: "short",
+      }).format(new Date())
+    : undefined;
+
   const handleExportPurchases = async () => {
     const m = machineQuery.data;
     const nameSlug =
@@ -270,15 +309,8 @@ function OperatorMachineDetailPage() {
             <h1 className="text-xl font-medium tracking-tight">
               {m.orgDisplayName}
             </h1>
-            <p className="text-sm text-muted-foreground">
-              Model {m.versionNumber}
-              {m.disabled ? " · disabled" : ""}
-            </p>
-            {m.internalName.trim() ? (
-              <p className="mt-1 text-xs text-muted-foreground">
-                Internal name:{" "}
-                <span className="text-foreground">{m.internalName}</span>
-              </p>
+            {m.disabled ? (
+              <p className="mt-1 text-sm text-muted-foreground">Disabled</p>
             ) : null}
           </div>
           <Link
@@ -334,23 +366,49 @@ function OperatorMachineDetailPage() {
         </Card>
       </section>
 
-      <section className="mb-10">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-medium">Purchases</h2>
-          <Link
-            to="/$orgSlug/machines/$machineId/purchases"
-            params={{ orgSlug, machineId }}
-            className={cn(
-              buttonVariants({ variant: "outline", size: "sm" }),
-              "rounded-none",
-            )}
+      {analyticsQuery.isError ? (
+        <p className="mb-4 text-sm text-destructive">
+          Could not load machine analytics.{" "}
+          <button
+            type="button"
+            className="underline"
+            onClick={() => void analyticsQuery.refetch()}
           >
-            Charts & full purchase log →
-          </Link>
-        </div>
+            Retry
+          </button>
+        </p>
+      ) : null}
+      {analyticsQuery.data?.meta.degraded ? (
+        <p className="mb-4 text-xs text-amber-700 dark:text-amber-400">
+          Live purchase data only — daily summary view is temporarily
+          unavailable.
+        </p>
+      ) : null}
+
+      <div className="mb-10">
+        <MachineAnalyticsDashboard
+          data={machineAnalyticsData}
+          headerSlot={
+            <AnalyticsRangePicker
+              value={analyticsWindow}
+              onChange={setAnalyticsWindow}
+            />
+          }
+          lastUpdated={analyticsLastUpdated}
+          chartLoading={allChartsLoading(
+            MACHINE_CHART_IDS,
+            analyticsQuery.isFetching && !analyticsQuery.data,
+          )}
+          onChartRetry={() => void analyticsQuery.refetch()}
+        />
+      </div>
+
+      <section className="mb-10">
+        <h2 className="mb-3 text-sm font-medium">Purchase log</h2>
         <p className="mb-4 text-xs text-muted-foreground">
-          Quick preview (latest 100). Open the link above for analytics, export,
-          and date filters.
+          Latest 100 rows by default. Date filters apply to the table only;
+          charts use the calendar period above (this machine only; no
+          business-entity filter).
         </p>
         <PurchasesTable
           data={purchaseRows}

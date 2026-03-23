@@ -20,6 +20,11 @@ import {
 } from "@slushomat/ui/composite/business-entity-form";
 import { ProductListRow } from "@slushomat/ui/composite/product-list-row";
 import { AnalyticsDashboard } from "@slushomat/ui/composite/analytics-dashboard";
+import {
+  AnalyticsRangePicker,
+  analyticsWindowToTrpcInput,
+  defaultAnalyticsWindow,
+} from "@slushomat/ui/composite/analytics-range-picker";
 import { PurchasesTable } from "@slushomat/ui/composite/purchases-table";
 import { BusinessEntityListRow } from "@slushomat/ui/composite/business-entity-list-row";
 import { env } from "@slushomat/env/web";
@@ -31,11 +36,6 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@slushomat/ui/lib/utils";
 
-import {
-  AnalyticsTimeControls,
-  localTodayIsoDate,
-  type AnalyticsPeriod,
-} from "@/components/analytics-time-controls";
 import {
   allChartsLoading,
   emptyOrgAnalyticsData,
@@ -88,10 +88,7 @@ function CustomerDetailPage() {
     machineId?: string;
   }>({});
 
-  const [analyticsPeriod, setAnalyticsPeriod] = useState<AnalyticsPeriod>(() => ({
-    mode: "week",
-    anchorDate: localTodayIsoDate(),
-  }));
+  const [analyticsWindow, setAnalyticsWindow] = useState(defaultAnalyticsWindow);
 
   const orgQuery = useQuery(
     trpc.admin.customer.get.queryOptions({ organizationId: customerId }),
@@ -126,8 +123,7 @@ function CustomerDetailPage() {
   const analyticsQuery = useQuery({
     ...trpc.admin.analytics.orgDashboard.queryOptions({
       organizationId: customerId,
-      mode: analyticsPeriod.mode,
-      anchorDate: analyticsPeriod.anchorDate,
+      ...analyticsWindowToTrpcInput(analyticsWindow),
       machineId: purchaseFilters.machineId,
       businessEntityId: purchaseFilters.businessEntityId,
     }),
@@ -541,10 +537,9 @@ function CustomerDetailPage() {
                 : emptyOrgAnalyticsData
             }
             headerSlot={
-              <AnalyticsTimeControls
-                idPrefix="admin-customer-org"
-                value={analyticsPeriod}
-                onChange={setAnalyticsPeriod}
+              <AnalyticsRangePicker
+                value={analyticsWindow}
+                onChange={setAnalyticsWindow}
               />
             }
             lastUpdated={

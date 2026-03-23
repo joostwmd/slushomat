@@ -98,8 +98,8 @@ Filters that include **`businessEntityId`** force **live** paths and **disable**
 | Admin `/dashboard` — platform charts only | ✅ |
 | Admin customer/machine — org/machine charts only | ✅ |
 
-**Finding U-1 (P3)**  
-**Operator machine overview** (`$machineId.tsx`) shows a **preview table** and links to **`/$orgSlug/machines/$machineId/purchases`** for full analytics. UI spec reads as analytics on “machine detail”; implementation is **split across two pages**. Works; optional **parity** with admin (charts on main machine page) for consistency.
+**Finding U-1 (resolved)**  
+Machine analytics and purchase log now live on a **single** operator route `/$orgSlug/machines/$machineId` (nested `/purchases` removed).
 
 **Finding U-2 (P3)**  
 Spec shows **Calendar in Popover**; apps use **`AnalyticsTimeControls`** with **`input type="date"`** (good keyboard/mobile; different from spec visuals).

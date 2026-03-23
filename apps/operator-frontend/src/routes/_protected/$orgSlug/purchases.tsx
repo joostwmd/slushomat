@@ -8,6 +8,11 @@ import {
 import { exportPurchasesToZip } from "@slushomat/ui/composite/purchases-export";
 import { PurchasesTable } from "@slushomat/ui/composite/purchases-table";
 import { AnalyticsDashboard } from "@slushomat/ui/composite/analytics-dashboard";
+import {
+  AnalyticsRangePicker,
+  analyticsWindowToTrpcInput,
+  defaultAnalyticsWindow,
+} from "@slushomat/ui/composite/analytics-range-picker";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
@@ -15,11 +20,6 @@ import { CpuIcon } from "lucide-react";
 import { buttonVariants } from "@slushomat/ui/base/button";
 import { cn } from "@slushomat/ui/lib/utils";
 
-import {
-  AnalyticsTimeControls,
-  localTodayIsoDate,
-  type AnalyticsPeriod,
-} from "@/components/analytics-time-controls";
 import {
   allChartsLoading,
   emptyOrgAnalyticsData,
@@ -40,10 +40,7 @@ function OperatorPurchasesPage() {
     machineId?: string;
   }>({});
 
-  const [period, setPeriod] = useState<AnalyticsPeriod>(() => ({
-    mode: "week",
-    anchorDate: localTodayIsoDate(),
-  }));
+  const [analyticsWindow, setAnalyticsWindow] = useState(defaultAnalyticsWindow);
 
   const machinesQuery = useQuery(
     trpc.operator.machine.list.queryOptions({ orgSlug }),
@@ -65,8 +62,7 @@ function OperatorPurchasesPage() {
   const analyticsQuery = useQuery(
     trpc.operator.analytics.orgDashboard.queryOptions({
       orgSlug,
-      mode: period.mode,
-      anchorDate: period.anchorDate,
+      ...analyticsWindowToTrpcInput(analyticsWindow),
       machineId: filters.machineId,
       businessEntityId: filters.businessEntityId,
     }),
@@ -130,8 +126,8 @@ function OperatorPurchasesPage() {
       <h1 className="mb-2 text-xl font-medium">Purchases</h1>
       <p className="mb-8 text-sm text-muted-foreground">
         Filter sales recorded from your machines. Export the current table as a
-        ZIP with CSV. Charts use the calendar period below and share machine /
-        entity filters with the table filters (table date range is separate).
+        ZIP with CSV. Charts use the Berlin-calendar range below and share
+        machine / entity filters with the table (table date range is separate).
       </p>
 
       {analyticsQuery.isError ? (
@@ -157,7 +153,10 @@ function OperatorPurchasesPage() {
         <AnalyticsDashboard
           data={analyticsData}
           headerSlot={
-            <AnalyticsTimeControls value={period} onChange={setPeriod} />
+            <AnalyticsRangePicker
+              value={analyticsWindow}
+              onChange={setAnalyticsWindow}
+            />
           }
           lastUpdated={lastUpdated}
           chartLoading={allChartsLoading(
@@ -202,7 +201,7 @@ function OperatorPurchasesPage() {
                         {m.orgDisplayName}
                       </CardTitle>
                       <CardDescription className="text-xs">
-                        Contract, slots, and purchase preview
+                        Analytics, contract, slots, and purchases
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -216,16 +215,6 @@ function OperatorPurchasesPage() {
                       </span>
                     </CardContent>
                   </Card>
-                </Link>
-                <Link
-                  to="/$orgSlug/machines/$machineId/purchases"
-                  params={{ orgSlug, machineId: m.id }}
-                  className={cn(
-                    buttonVariants({ variant: "outline", size: "sm" }),
-                    "w-full justify-center rounded-none text-xs",
-                  )}
-                >
-                  Machine charts & purchases
                 </Link>
               </li>
             ))}

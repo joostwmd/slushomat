@@ -7,17 +7,17 @@ import {
   CardTitle,
 } from "@slushomat/ui/base/card";
 import { MachineAnalyticsDashboard } from "@slushomat/ui/composite/machine-analytics-dashboard";
+import {
+  AnalyticsRangePicker,
+  analyticsWindowToTrpcInput,
+  defaultAnalyticsWindow,
+} from "@slushomat/ui/composite/analytics-range-picker";
 import { PurchasesTable } from "@slushomat/ui/composite/purchases-table";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { cn } from "@slushomat/ui/lib/utils";
 
-import {
-  AnalyticsTimeControls,
-  localTodayIsoDate,
-  type AnalyticsPeriod,
-} from "@/components/analytics-time-controls";
 import {
   allChartsLoading,
   emptyOrgAnalyticsData,
@@ -50,10 +50,7 @@ function AdminMachineDetailPage() {
     dateTo?: Date;
   }>({});
 
-  const [analyticsPeriod, setAnalyticsPeriod] = useState<AnalyticsPeriod>(() => ({
-    mode: "week",
-    anchorDate: localTodayIsoDate(),
-  }));
+  const [analyticsWindow, setAnalyticsWindow] = useState(defaultAnalyticsWindow);
 
   const orgQuery = useQuery(
     trpc.admin.customer.get.queryOptions({ organizationId: customerId }),
@@ -92,8 +89,7 @@ function AdminMachineDetailPage() {
     trpc.admin.analytics.machineDashboard.queryOptions({
       organizationId: customerId,
       machineId,
-      mode: analyticsPeriod.mode,
-      anchorDate: analyticsPeriod.anchorDate,
+      ...analyticsWindowToTrpcInput(analyticsWindow),
     }),
   );
 
@@ -210,10 +206,9 @@ function AdminMachineDetailPage() {
         <MachineAnalyticsDashboard
           data={machineAnalyticsData}
           headerSlot={
-            <AnalyticsTimeControls
-              idPrefix="admin-customer-machine"
-              value={analyticsPeriod}
-              onChange={setAnalyticsPeriod}
+            <AnalyticsRangePicker
+              value={analyticsWindow}
+              onChange={setAnalyticsWindow}
             />
           }
           lastUpdated={analyticsLastUpdated}

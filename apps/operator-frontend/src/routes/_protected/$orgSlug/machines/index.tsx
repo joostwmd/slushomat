@@ -1,7 +1,6 @@
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@slushomat/ui/base/card";
@@ -78,14 +77,6 @@ function OperatorMachinesPage() {
                     <CardTitle className="text-base font-medium leading-tight">
                       {m.orgDisplayName}
                     </CardTitle>
-                    <CardDescription>
-                      Model {m.versionNumber}
-                      {m.internalName.trim() ? (
-                        <span className="block text-[10px] text-muted-foreground">
-                          Internal: {m.internalName}
-                        </span>
-                      ) : null}
-                    </CardDescription>
                   </CardHeader>
                   {m.comments.trim() ? (
                     <CardContent className="pt-0">

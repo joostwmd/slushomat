@@ -26,6 +26,10 @@ import {
   YAxis,
 } from "recharts";
 
+import {
+  hasDailyBarData,
+  hasGrossTotalsData,
+} from "../lib/analytics-chart-has-data";
 import { AnalyticsChartShell } from "./analytics-chart-shell";
 import type { AdminPlatformAnalyticsDashboardData } from "./analytics-mock-data";
 import { mockAdminPlatformAnalyticsData } from "./analytics-mock-data";
@@ -101,28 +105,33 @@ export function AdminPlatformAnalyticsDashboard({
 
   const sharePie = revenueShareBreakdown(data);
 
+  const platformTrendEmpty = !hasDailyBarData(data.dailyTotals);
+  const topOrgsEmpty = !hasGrossTotalsData(data.topOrganizations);
+  const machineUtilEmpty = !hasDailyBarData(data.machineTotals);
+  const revenueShareEmpty = sharePie.length === 0;
+
   return (
     <Card className="gap-0 overflow-hidden">
-      <CardHeader className="border-b border-border">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
+      <CardHeader className="gap-0 space-y-0 border-b border-border pb-0">
+        <div className="space-y-2 pb-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <CardTitle>Platform analytics</CardTitle>
-            <CardDescription>
-              Cross-customer aggregates. Hover for values; charts do not filter
-              tables.
-            </CardDescription>
-          </div>
-          <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-3">
             {lastUpdated ? (
-              <span className="inline-flex w-fit rounded-none bg-secondary px-2 py-1 text-xs text-secondary-foreground">
-                Last updated: {lastUpdated}
+              <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                Updated {lastUpdated}
               </span>
             ) : null}
-            {headerSlot ? (
-              <div className="flex flex-wrap items-center gap-2">{headerSlot}</div>
-            ) : null}
           </div>
+          <CardDescription>
+            Cross-customer totals. Hover charts for values; charts don’t filter
+            tables.
+          </CardDescription>
         </div>
+        {headerSlot ? (
+          <div className="-mx-4 border-t border-border bg-muted/25 px-4 py-3">
+            {headerSlot}
+          </div>
+        ) : null}
       </CardHeader>
       <CardContent className="pt-6">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -130,6 +139,8 @@ export function AdminPlatformAnalyticsDashboard({
             chartId="platform-trend"
             title="Platform revenue trend"
             description="Gross sales across all customers (window shown)."
+            empty={platformTrendEmpty}
+            emptyDescription="No platform revenue in this period."
             loading={chartLoading?.["platform-trend"]}
             onRetry={onChartRetry}
           >
@@ -169,6 +180,8 @@ export function AdminPlatformAnalyticsDashboard({
             chartId="top-orgs"
             title="Top organizations"
             description="Gross volume in the selected period (mock until API wiring)."
+            empty={topOrgsEmpty}
+            emptyDescription="No organization volume in this period."
             loading={chartLoading?.["top-orgs"]}
             onRetry={onChartRetry}
           >
@@ -217,6 +230,8 @@ export function AdminPlatformAnalyticsDashboard({
             chartId="machine-util"
             title="Machine utilization (sample)"
             description="Purchase counts by machine label (proxy for utilization)."
+            empty={machineUtilEmpty}
+            emptyDescription="No machine activity in this period."
             loading={chartLoading?.["machine-util"]}
             onRetry={onChartRetry}
           >
@@ -240,6 +255,8 @@ export function AdminPlatformAnalyticsDashboard({
             chartId="revenue-share"
             title="Revenue share breakdown (est.)"
             description="Illustrative split from platform totals and window gross (T03 will use real allocations)."
+            empty={revenueShareEmpty}
+            emptyDescription="Not enough data to estimate revenue share for this period."
             loading={chartLoading?.["revenue-share"]}
             onRetry={onChartRetry}
           >
