@@ -18,7 +18,7 @@ export const analyticsPurchaseDailySummary = pgMaterializedView(
   "analytics_purchase_daily_summary",
   {
     bucketDate: date("bucket_date", { mode: "date" }).notNull(),
-    organizationId: text("organization_id").notNull(),
+    operatorId: text("operator_id").notNull(),
     machineId: text("machine_id").notNull(),
     purchaseCount: integer("purchase_count").notNull(),
     grossAmountCents: bigint("gross_amount_cents", { mode: "bigint" }),

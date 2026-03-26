@@ -22,7 +22,7 @@ export interface DefineVersionedEntityConfig {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   versionColumns: Record<string, any>;
   references?: {
-    organization?: RefTable;
+    operator?: RefTable;
     user?: RefTable;
   };
 }
@@ -35,10 +35,10 @@ export function defineVersionedEntity(config: DefineVersionedEntityConfig) {
 
   if (
     (scope === "org" || scope === "org-user") &&
-    !references?.organization
+    !references?.operator
   ) {
     throw new Error(
-      `defineVersionedEntity("${name}"): scope "${scope}" requires references.organization`,
+      `defineVersionedEntity("${name}"): scope "${scope}" requires references.operator`,
     );
   }
   if (
@@ -50,7 +50,7 @@ export function defineVersionedEntity(config: DefineVersionedEntityConfig) {
     );
   }
 
-  const orgTable = references?.organization;
+  const operatorTable = references?.operator;
   const userTable = references?.user;
   const versionTableName = `${name}_version`;
   const changeTableName = `${name}_change`;
@@ -85,9 +85,9 @@ export function defineVersionedEntity(config: DefineVersionedEntityConfig) {
       id: text("id").primaryKey(),
       ...(scope === "org" || scope === "org-user"
         ? {
-            organizationId: text("organization_id")
+            operatorId: text("operator_id")
               .notNull()
-              .references(() => orgTable.id, { onDelete: "cascade" }),
+              .references(() => operatorTable.id, { onDelete: "cascade" }),
           }
         : {}),
       ...(scope === "user" || scope === "org-user"
@@ -112,8 +112,8 @@ export function defineVersionedEntity(config: DefineVersionedEntityConfig) {
     (t: any) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const out: any[] = [];
-      if ("organizationId" in t && t.organizationId) {
-        out.push(index(`${name}_organization_id_idx`).on(t.organizationId));
+      if ("operatorId" in t && t.operatorId) {
+        out.push(index(`${name}_operator_id_idx`).on(t.operatorId));
       }
       if ("userId" in t && t.userId) {
         out.push(index(`${name}_user_id_idx`).on(t.userId));

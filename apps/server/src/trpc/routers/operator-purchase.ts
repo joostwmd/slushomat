@@ -3,15 +3,17 @@ import { z } from "zod";
 import {
   businessEntity,
   machine,
+  machineSlot,
   operatorContract,
+  operatorMachine,
   operatorProduct,
-  organizationMachineDisplayName,
+  operatorMachineDisplayName,
   purchase,
 } from "@slushomat/db/schema";
-import { ensureOrganizationMachineDisplayNames } from "../../lib/organization-machine-display-name";
+import { ensureOperatorMachineDisplayNames } from "../../lib/operator-machine-display-name";
 import {
   assertUserMemberOfOrg,
-  getOrganizationIdForSlug,
+  getOperatorIdForSlug,
 } from "../../lib/org-scope";
 import { router } from "../init";
 import { operatorProcedure } from "../procedures";
@@ -43,9 +45,9 @@ async function resolveOrgWithMembership(
   ctx: { db: typeof import("@slushomat/db").db; user: { id: string } },
   orgSlug: string,
 ): Promise<string> {
-  const organizationId = await getOrganizationIdForSlug(ctx.db, orgSlug);
-  await assertUserMemberOfOrg(ctx.db, ctx.user.id, organizationId);
-  return organizationId;
+  const operatorId = await getOperatorIdForSlug(ctx.db, orgSlug);
+  await assertUserMemberOfOrg(ctx.db, ctx.user.id, operatorId);
+  return operatorId;
 }
 
 export const operatorPurchaseRouter = router({
@@ -53,25 +55,22 @@ export const operatorPurchaseRouter = router({
     .input(listInputSchema)
     .output(z.array(purchaseRowSchema))
     .query(async ({ ctx, input }) => {
-      const organizationId = await resolveOrgWithMembership(
-        ctx,
-        input.orgSlug,
-      );
+      const operatorId = await resolveOrgWithMembership(ctx, input.orgSlug);
 
       const contractMachineRows = await ctx.db
-        .select({ machineId: operatorContract.machineId })
+        .select({ machineId: operatorMachine.machineId })
         .from(operatorContract)
-        .where(eq(operatorContract.organizationId, organizationId));
+        .innerJoin(
+          operatorMachine,
+          eq(operatorContract.operatorMachineId, operatorMachine.id),
+        )
+        .where(eq(operatorContract.operatorId, operatorId));
       const orgMachineIds = [
         ...new Set(contractMachineRows.map((r) => r.machineId)),
       ];
-      await ensureOrganizationMachineDisplayNames(
-        ctx.db,
-        organizationId,
-        orgMachineIds,
-      );
+      await ensureOperatorMachineDisplayNames(ctx.db, operatorId, orgMachineIds);
 
-      const conds = [eq(purchase.organizationId, organizationId)];
+      const conds = [eq(purchase.operatorId, operatorId)];
 
       if (input.machineId) {
         conds.push(eq(purchase.machineId, input.machineId));
@@ -92,18 +91,19 @@ export const operatorPurchaseRouter = router({
         .select({
           id: purchase.id,
           machineId: purchase.machineId,
-          machineLabel: sql<string>`coalesce(${organizationMachineDisplayName.orgDisplayName}, ${machine.internalName}, ${purchase.machineId})`.as(
+          machineLabel: sql<string>`coalesce(${operatorMachineDisplayName.orgDisplayName}, ${machine.internalName}, ${purchase.machineId})`.as(
             "machine_label",
           ),
           businessEntityId: purchase.businessEntityId,
           operatorProductId: purchase.operatorProductId,
           productName: operatorProduct.name,
-          slot: purchase.slot,
+          slot: machineSlot.slot,
           amountInCents: purchase.amountInCents,
           purchasedAt: purchase.purchasedAt,
           businessEntityName: businessEntity.name,
         })
         .from(purchase)
+        .innerJoin(machineSlot, eq(purchase.machineSlotId, machineSlot.id))
         .innerJoin(
           operatorProduct,
           eq(purchase.operatorProductId, operatorProduct.id),
@@ -114,13 +114,10 @@ export const operatorPurchaseRouter = router({
         )
         .leftJoin(machine, eq(purchase.machineId, machine.id))
         .leftJoin(
-          organizationMachineDisplayName,
+          operatorMachineDisplayName,
           and(
-            eq(organizationMachineDisplayName.machineId, purchase.machineId),
-            eq(
-              organizationMachineDisplayName.organizationId,
-              organizationId,
-            ),
+            eq(operatorMachineDisplayName.machineId, purchase.machineId),
+            eq(operatorMachineDisplayName.operatorId, operatorId),
           ),
         )
         .where(and(...conds))

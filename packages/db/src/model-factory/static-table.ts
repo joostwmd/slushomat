@@ -57,9 +57,9 @@ export abstract class StaticTable {
         this.config.scope === "org" ||
         this.config.scope === "org-user"
       ) {
-        if (c.organizationId) {
+        if (c.operatorId) {
           conditions.push(
-            eq(c.organizationId, this.session.organizationId),
+            eq(c.operatorId, this.session.operatorId),
           );
         }
       }
@@ -93,7 +93,7 @@ export abstract class StaticTable {
         updatedAt: new Date(),
       };
       if (this.config.scope === "org" || this.config.scope === "org-user") {
-        values.organizationId = this.session.organizationId;
+        values.operatorId = this.session.operatorId;
       }
       if (this.config.scope === "user" || this.config.scope === "org-user") {
         values.userId = this.session.user.id;

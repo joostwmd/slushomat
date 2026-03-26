@@ -1,14 +1,14 @@
 import { desc, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { businessEntity, organization } from "@slushomat/db/schema";
-import { assertBusinessEntityBelongsToOrg } from "../../lib/machine-lifecycle";
+import { businessEntity, operator } from "@slushomat/db/schema";
+import { assertBusinessEntityBelongsToOperator } from "../../lib/machine-lifecycle";
 import { router } from "../init";
 import { adminProcedure } from "../procedures";
 
 const entityRow = z.object({
   id: z.string(),
-  organizationId: z.string(),
+  operatorId: z.string(),
   name: z.string(),
   legalName: z.string(),
   legalForm: z.string(),
@@ -24,19 +24,19 @@ const entityRow = z.object({
 
 type EntityRow = z.infer<typeof entityRow>;
 
-async function requireOrganization(
+async function requireOperator(
   ctx: { db: typeof import("@slushomat/db").db },
-  organizationId: string,
+  operatorId: string,
 ) {
   const [row] = await ctx.db
-    .select({ id: organization.id })
-    .from(organization)
-    .where(eq(organization.id, organizationId))
+    .select({ id: operator.id })
+    .from(operator)
+    .where(eq(operator.id, operatorId))
     .limit(1);
   if (!row) {
     throw new TRPCError({
       code: "NOT_FOUND",
-      message: "Organization not found",
+      message: "Operator not found",
     });
   }
 }
@@ -46,11 +46,11 @@ export const adminBusinessEntityRouter = router({
     .input(z.object({ organizationId: z.string().min(1) }))
     .output(z.array(entityRow))
     .query(async ({ ctx, input }) => {
-      await requireOrganization(ctx, input.organizationId);
+      await requireOperator(ctx, input.organizationId);
       const rows = await ctx.db
         .select()
         .from(businessEntity)
-        .where(eq(businessEntity.organizationId, input.organizationId))
+        .where(eq(businessEntity.operatorId, input.organizationId))
         .orderBy(desc(businessEntity.createdAt));
       return rows as unknown as EntityRow[];
     }),
@@ -71,13 +71,13 @@ export const adminBusinessEntityRouter = router({
     )
     .output(entityRow)
     .mutation(async ({ ctx, input }) => {
-      await requireOrganization(ctx, input.organizationId);
+      await requireOperator(ctx, input.organizationId);
       const id = crypto.randomUUID();
       const inserted = (await ctx.db
         .insert(businessEntity)
         .values({
           id,
-          organizationId: input.organizationId,
+          operatorId: input.organizationId,
           name: input.name.trim(),
           legalName: input.legalName.trim(),
           legalForm: input.legalForm.trim(),
@@ -115,7 +115,7 @@ export const adminBusinessEntityRouter = router({
     )
     .output(entityRow)
     .mutation(async ({ ctx, input }) => {
-      await assertBusinessEntityBelongsToOrg(
+      await assertBusinessEntityBelongsToOperator(
         ctx.db,
         input.id,
         input.organizationId,
@@ -153,7 +153,7 @@ export const adminBusinessEntityRouter = router({
     )
     .output(entityRow)
     .mutation(async ({ ctx, input }) => {
-      await assertBusinessEntityBelongsToOrg(
+      await assertBusinessEntityBelongsToOperator(
         ctx.db,
         input.id,
         input.organizationId,

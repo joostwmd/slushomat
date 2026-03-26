@@ -24,6 +24,7 @@ import {
   analyticsPurchaseDailySummary,
   operatorContract,
   operatorContractVersion,
+  operatorMachine,
   purchase,
 } from "@slushomat/db/schema";
 
@@ -90,6 +91,7 @@ export function machineAnalyticsLabel(
 }
 
 export type PurchaseBerlinRangeFilters = {
+  /** Operator (tenant) id — same value as legacy “organization” id. */
   organizationId?: string;
   machineId?: string;
   businessEntityId?: string;
@@ -103,7 +105,7 @@ export function contractRevenueShareBasisPointsAtPurchase(
   db: NodePgDatabase<typeof schema>,
   purchaseRow: {
     machineId: AnyColumn;
-    organizationId: AnyColumn;
+    operatorId: AnyColumn;
     purchasedAt: AnyColumn;
   },
 ) {
@@ -113,13 +115,17 @@ export function contractRevenueShareBasisPointsAtPurchase(
     })
     .from(operatorContract)
     .innerJoin(
+      operatorMachine,
+      eq(operatorContract.operatorMachineId, operatorMachine.id),
+    )
+    .innerJoin(
       operatorContractVersion,
       eq(operatorContractVersion.entityId, operatorContract.id),
     )
     .where(
       and(
-        eq(operatorContract.machineId, purchaseRow.machineId),
-        eq(operatorContract.organizationId, purchaseRow.organizationId),
+        eq(operatorMachine.machineId, purchaseRow.machineId),
+        eq(operatorContract.operatorId, purchaseRow.operatorId),
         lte(operatorContractVersion.effectiveDate, purchaseRow.purchasedAt),
         or(
           isNull(operatorContractVersion.endedAt),
@@ -152,7 +158,7 @@ export async function sumPurchasesByBerlinDayWithPlatformShare(
     lte(berlinDay, pgDate(endDate)),
   ];
   if (filters.organizationId !== undefined) {
-    conds.push(eq(p.organizationId, filters.organizationId));
+    conds.push(eq(p.operatorId, filters.organizationId));
   }
   if (filters.machineId !== undefined) {
     conds.push(eq(p.machineId, filters.machineId));
@@ -163,7 +169,7 @@ export async function sumPurchasesByBerlinDayWithPlatformShare(
 
   const cv = contractRevenueShareBasisPointsAtPurchase(db, {
     machineId: p.machineId,
-    organizationId: p.organizationId,
+    operatorId: p.operatorId,
     purchasedAt: p.purchasedAt,
   });
 
@@ -207,7 +213,7 @@ export async function totalPlatformShareCentsInBerlinRange(
   const berlinDay = purchaseBerlinCalendarDate(p.purchasedAt);
   const cv = contractRevenueShareBasisPointsAtPurchase(db, {
     machineId: p.machineId,
-    organizationId: p.organizationId,
+    operatorId: p.operatorId,
     purchasedAt: p.purchasedAt,
   });
 

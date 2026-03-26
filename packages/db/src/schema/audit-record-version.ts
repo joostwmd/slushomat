@@ -9,7 +9,7 @@ import {
 
 export const auditSchema = pgSchema("audit");
 
-/** Populated by `audit.insert_update_delete_trigger` — see `0001_audit_record_version.sql`. */
+/** Populated by `audit.insert_update_delete_trigger` — see `0000_analytics_purchase_daily_summary.sql`. */
 export const auditRecordVersion = auditSchema.table("record_version", {
   id: serial("id").primaryKey(),
   recordId: text("record_id"),

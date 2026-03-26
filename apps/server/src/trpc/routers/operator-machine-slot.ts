@@ -5,13 +5,13 @@ import { z } from "zod";
 import { db } from "@slushomat/db";
 import {
   businessEntity,
-  machineSlotConfig,
+  machineSlot,
   operatorProduct,
 } from "@slushomat/db/schema";
-import { getOpenDeploymentForMachine } from "../../lib/machine-lifecycle";
+import { getOpenOperatorMachineForMachine } from "../../lib/machine-lifecycle";
 import {
   assertUserMemberOfOrg,
-  getOrganizationIdForSlug,
+  getOperatorIdForSlug,
 } from "../../lib/org-scope";
 import { router } from "../init";
 import { operatorProcedure } from "../procedures";
@@ -36,43 +36,49 @@ async function resolveOrgWithMembership(
   ctx: { db: typeof db; user: { id: string } },
   orgSlug: string,
 ): Promise<string> {
-  const organizationId = await getOrganizationIdForSlug(ctx.db, orgSlug);
-  await assertUserMemberOfOrg(ctx.db, ctx.user.id, organizationId);
-  return organizationId;
+  const operatorId = await getOperatorIdForSlug(ctx.db, orgSlug);
+  await assertUserMemberOfOrg(ctx.db, ctx.user.id, operatorId);
+  return operatorId;
 }
 
 /**
- * Open deployment for machine whose linked business entity belongs to `organizationId`.
+ * Open operator_machine row for machine whose business entity belongs to `operatorId`.
  */
-async function requireOpenDeploymentForOrgMachine(
+async function requireOpenOperatorMachineForOperator(
   dbClient: typeof db,
-  organizationId: string,
+  operatorId: string,
   machineId: string,
 ) {
-  const deployment = await getOpenDeploymentForMachine(dbClient, machineId);
-  if (!deployment) {
+  const openOm = await getOpenOperatorMachineForMachine(dbClient, machineId);
+  if (!openOm) {
     throw new TRPCError({
       code: "NOT_FOUND",
       message: "No open deployment for this machine",
     });
   }
-  const [be] = await dbClient
-    .select({ organizationId: businessEntity.organizationId })
-    .from(businessEntity)
-    .where(eq(businessEntity.id, deployment.businessEntityId))
-    .limit(1);
-  if (!be || be.organizationId !== organizationId) {
+  if (openOm.operatorId !== operatorId) {
     throw new TRPCError({
       code: "FORBIDDEN",
-      message: "Deployment is not for this organization",
+      message: "Deployment is not for this operator",
     });
   }
-  return deployment;
+  const [be] = await dbClient
+    .select({ operatorId: businessEntity.operatorId })
+    .from(businessEntity)
+    .where(eq(businessEntity.id, openOm.businessEntityId))
+    .limit(1);
+  if (!be || be.operatorId !== operatorId) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Deployment is not for this operator",
+    });
+  }
+  return openOm;
 }
 
-async function requireOperatorProductInOrg(
+async function requireOperatorProductInOperator(
   dbClient: typeof db,
-  organizationId: string,
+  operatorId: string,
   operatorProductId: string,
 ) {
   const [row] = await dbClient
@@ -81,14 +87,14 @@ async function requireOperatorProductInOrg(
     .where(
       and(
         eq(operatorProduct.id, operatorProductId),
-        eq(operatorProduct.organizationId, organizationId),
+        eq(operatorProduct.operatorId, operatorId),
       ),
     )
     .limit(1);
   if (!row) {
     throw new TRPCError({
       code: "BAD_REQUEST",
-      message: "Product not found in this organization",
+      message: "Product not found for this operator",
     });
   }
 }
@@ -98,25 +104,20 @@ export const operatorMachineSlotRouter = router({
     .input(orgSlugMachineInput)
     .output(slotConfigOutputSchema)
     .query(async ({ ctx, input }) => {
-      const organizationId = await resolveOrgWithMembership(
-        ctx,
-        input.orgSlug,
-      );
-      const deployment = await requireOpenDeploymentForOrgMachine(
+      const operatorId = await resolveOrgWithMembership(ctx, input.orgSlug);
+      const openOm = await requireOpenOperatorMachineForOperator(
         ctx.db,
-        organizationId,
+        operatorId,
         input.machineId,
       );
 
       const rows = await ctx.db
         .select({
-          slot: machineSlotConfig.slot,
-          operatorProductId: machineSlotConfig.operatorProductId,
+          slot: machineSlot.slot,
+          operatorProductId: machineSlot.operatorProductId,
         })
-        .from(machineSlotConfig)
-        .where(
-          eq(machineSlotConfig.machineDeploymentId, deployment.id),
-        );
+        .from(machineSlot)
+        .where(eq(machineSlot.operatorMachineId, openOm.id));
 
       const slots = {
         left: null as string | null,
@@ -130,7 +131,7 @@ export const operatorMachineSlotRouter = router({
         }
       }
 
-      return { deploymentId: deployment.id, slots };
+      return { deploymentId: openOm.id, slots };
     }),
 
   setSlots: operatorProcedure
@@ -145,13 +146,10 @@ export const operatorMachineSlotRouter = router({
     )
     .output(slotConfigOutputSchema)
     .mutation(async ({ ctx, input }) => {
-      const organizationId = await resolveOrgWithMembership(
-        ctx,
-        input.orgSlug,
-      );
-      const deployment = await requireOpenDeploymentForOrgMachine(
+      const operatorId = await resolveOrgWithMembership(ctx, input.orgSlug);
+      const openOm = await requireOpenOperatorMachineForOperator(
         ctx.db,
-        organizationId,
+        operatorId,
         input.machineId,
       );
 
@@ -162,9 +160,9 @@ export const operatorMachineSlotRouter = router({
 
       for (const [, productId] of entries) {
         if (productId !== null) {
-          await requireOperatorProductInOrg(
+          await requireOperatorProductInOperator(
             ctx.db,
-            organizationId,
+            operatorId,
             productId,
           );
         }
@@ -174,18 +172,15 @@ export const operatorMachineSlotRouter = router({
         for (const [slot, operatorProductId] of entries) {
           const id = randomUUID();
           await tx
-            .insert(machineSlotConfig)
+            .insert(machineSlot)
             .values({
               id,
-              machineDeploymentId: deployment.id,
+              operatorMachineId: openOm.id,
               slot,
               operatorProductId,
             })
             .onConflictDoUpdate({
-              target: [
-                machineSlotConfig.machineDeploymentId,
-                machineSlotConfig.slot,
-              ],
+              target: [machineSlot.operatorMachineId, machineSlot.slot],
               set: {
                 operatorProductId,
                 updatedAt: new Date(),
@@ -196,13 +191,11 @@ export const operatorMachineSlotRouter = router({
 
       const rows = await ctx.db
         .select({
-          slot: machineSlotConfig.slot,
-          operatorProductId: machineSlotConfig.operatorProductId,
+          slot: machineSlot.slot,
+          operatorProductId: machineSlot.operatorProductId,
         })
-        .from(machineSlotConfig)
-        .where(
-          eq(machineSlotConfig.machineDeploymentId, deployment.id),
-        );
+        .from(machineSlot)
+        .where(eq(machineSlot.operatorMachineId, openOm.id));
 
       const slots = {
         left: null as string | null,
@@ -216,6 +209,6 @@ export const operatorMachineSlotRouter = router({
         }
       }
 
-      return { deploymentId: deployment.id, slots };
+      return { deploymentId: openOm.id, slots };
     }),
 });

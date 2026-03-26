@@ -6,9 +6,9 @@ import {
   timestamp,
 } from "drizzle-orm/pg-core";
 
-import { organization } from "./auth";
+import { operator } from "./auth";
 import { businessEntity } from "./business-entity";
-import { machineSlotEnum } from "./machine-lifecycle";
+import { machineSlot } from "./machine-lifecycle";
 import { machine } from "./machines";
 import { operatorProduct } from "./operator-product";
 
@@ -16,12 +16,15 @@ export const purchase = pgTable(
   "purchase",
   {
     id: text("id").primaryKey(),
+    machineSlotId: text("machine_slot_id")
+      .notNull()
+      .references(() => machineSlot.id, { onDelete: "restrict" }),
     machineId: text("machine_id")
       .notNull()
       .references(() => machine.id, { onDelete: "restrict" }),
-    organizationId: text("organization_id")
+    operatorId: text("operator_id")
       .notNull()
-      .references(() => organization.id, { onDelete: "restrict" }),
+      .references(() => operator.id, { onDelete: "restrict" }),
     businessEntityId: text("business_entity_id").references(
       () => businessEntity.id,
       { onDelete: "set null" },
@@ -29,14 +32,13 @@ export const purchase = pgTable(
     operatorProductId: text("operator_product_id")
       .notNull()
       .references(() => operatorProduct.id, { onDelete: "restrict" }),
-    slot: machineSlotEnum("slot").notNull(),
     amountInCents: integer("amount_in_cents").notNull(),
     purchasedAt: timestamp("purchased_at").defaultNow().notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
-    index("purchase_organization_id_purchased_at_idx").on(
-      table.organizationId,
+    index("purchase_operator_id_purchased_at_idx").on(
+      table.operatorId,
       table.purchasedAt.desc(),
     ),
     index("purchase_machine_id_purchased_at_idx").on(
@@ -47,5 +49,6 @@ export const purchase = pgTable(
       table.businessEntityId,
       table.purchasedAt.desc(),
     ),
+    index("purchase_machine_slot_id_idx").on(table.machineSlotId),
   ],
 );

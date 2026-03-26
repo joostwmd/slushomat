@@ -10,7 +10,7 @@ import {
 } from "@slushomat/db/schema";
 import {
   assertUserMemberOfOrg,
-  getOrganizationIdForSlug,
+  getOperatorIdForSlug,
 } from "../../lib/org-scope";
 import {
   ALLOWED_PRODUCT_IMAGE_TYPES,
@@ -41,7 +41,7 @@ const listItemSchema = z.object({
 
 const operatorProductRowSchema = z.object({
   id: z.string(),
-  organizationId: z.string(),
+  operatorId: z.string(),
   name: z.string(),
   priceInCents: z.number().int(),
   taxRatePercent: taxRateSchema,
@@ -55,14 +55,14 @@ async function resolveOrgWithMembership(
   ctx: { db: typeof db; user: { id: string } },
   orgSlug: string,
 ): Promise<string> {
-  const organizationId = await getOrganizationIdForSlug(ctx.db, orgSlug);
-  await assertUserMemberOfOrg(ctx.db, ctx.user.id, organizationId);
-  return organizationId;
+  const operatorId = await getOperatorIdForSlug(ctx.db, orgSlug);
+  await assertUserMemberOfOrg(ctx.db, ctx.user.id, operatorId);
+  return operatorId;
 }
 
 async function requireOperatorProductInOrg(
   dbClient: typeof db,
-  organizationId: string,
+  operatorId: string,
   operatorProductId: string,
 ) {
   const [row] = await dbClient
@@ -71,7 +71,7 @@ async function requireOperatorProductInOrg(
     .where(
       and(
         eq(operatorProduct.id, operatorProductId),
-        eq(operatorProduct.organizationId, organizationId),
+        eq(operatorProduct.operatorId, operatorId),
       ),
     )
     .limit(1);
@@ -89,7 +89,7 @@ export const operatorProductRouter = router({
     .input(orgSlugInput)
     .output(z.array(listItemSchema))
     .query(async ({ ctx, input }) => {
-      const organizationId = await resolveOrgWithMembership(ctx, input.orgSlug);
+      const operatorId = await resolveOrgWithMembership(ctx, input.orgSlug);
 
       let storage: ReturnType<typeof getProductImageStorage> | null = null;
       try {
@@ -114,7 +114,7 @@ export const operatorProductRouter = router({
           productImage,
           eq(operatorProduct.productImageId, productImage.id),
         )
-        .where(eq(operatorProduct.organizationId, organizationId))
+        .where(eq(operatorProduct.operatorId, operatorId))
         .orderBy(desc(operatorProduct.createdAt));
 
       const out: z.infer<typeof listItemSchema>[] = [];
@@ -150,21 +150,21 @@ export const operatorProductRouter = router({
     )
     .output(operatorProductRowSchema)
     .mutation(async ({ ctx, input }) => {
-      const organizationId = await resolveOrgWithMembership(ctx, input.orgSlug);
+      const operatorId = await resolveOrgWithMembership(ctx, input.orgSlug);
       const id = randomUUID();
       const name = input.name.trim();
       const [row] = await ctx.db
         .insert(operatorProduct)
         .values({
           id,
-          organizationId,
+          operatorId,
           name,
           priceInCents: input.priceInCents,
           taxRatePercent: input.taxRatePercent,
         })
         .returning({
           id: operatorProduct.id,
-          organizationId: operatorProduct.organizationId,
+          operatorId: operatorProduct.operatorId,
           name: operatorProduct.name,
           priceInCents: operatorProduct.priceInCents,
           taxRatePercent: operatorProduct.taxRatePercent,
@@ -196,8 +196,8 @@ export const operatorProductRouter = router({
     )
     .output(operatorProductRowSchema)
     .mutation(async ({ ctx, input }) => {
-      const organizationId = await resolveOrgWithMembership(ctx, input.orgSlug);
-      await requireOperatorProductInOrg(ctx.db, organizationId, input.id);
+      const operatorId = await resolveOrgWithMembership(ctx, input.orgSlug);
+      await requireOperatorProductInOrg(ctx.db, operatorId, input.id);
       const name = input.name.trim();
       const [row] = await ctx.db
         .update(operatorProduct)
@@ -209,7 +209,7 @@ export const operatorProductRouter = router({
         .where(eq(operatorProduct.id, input.id))
         .returning({
           id: operatorProduct.id,
-          organizationId: operatorProduct.organizationId,
+          operatorId: operatorProduct.operatorId,
           name: operatorProduct.name,
           priceInCents: operatorProduct.priceInCents,
           taxRatePercent: operatorProduct.taxRatePercent,
@@ -234,7 +234,7 @@ export const operatorProductRouter = router({
     .input(orgSlugInput.extend({ id: z.string().min(1) }))
     .output(z.object({ ok: z.literal(true) }))
     .mutation(async ({ ctx, input }) => {
-      const organizationId = await resolveOrgWithMembership(ctx, input.orgSlug);
+      const operatorId = await resolveOrgWithMembership(ctx, input.orgSlug);
       const storage = getProductImageStorage();
       const [prev] = await ctx.db
         .select({ productImageId: operatorProduct.productImageId })
@@ -242,7 +242,7 @@ export const operatorProductRouter = router({
         .where(
           and(
             eq(operatorProduct.id, input.id),
-            eq(operatorProduct.organizationId, organizationId),
+            eq(operatorProduct.operatorId, operatorId),
           ),
         )
         .limit(1);
@@ -269,7 +269,7 @@ export const operatorProductRouter = router({
     .input(orgSlugInput.extend({ templateProductId: z.string().min(1) }))
     .output(operatorProductRowSchema)
     .mutation(async ({ ctx, input }) => {
-      const organizationId = await resolveOrgWithMembership(ctx, input.orgSlug);
+      const operatorId = await resolveOrgWithMembership(ctx, input.orgSlug);
       const [tpl] = await ctx.db
         .select()
         .from(templateProduct)
@@ -287,7 +287,7 @@ export const operatorProductRouter = router({
         .insert(operatorProduct)
         .values({
           id,
-          organizationId,
+          operatorId,
           name: tpl.name,
           priceInCents: tpl.priceInCents,
           taxRatePercent: tpl.taxRatePercent,
@@ -296,7 +296,7 @@ export const operatorProductRouter = router({
         })
         .returning({
           id: operatorProduct.id,
-          organizationId: operatorProduct.organizationId,
+          operatorId: operatorProduct.operatorId,
           name: operatorProduct.name,
           priceInCents: operatorProduct.priceInCents,
           taxRatePercent: operatorProduct.taxRatePercent,
@@ -393,10 +393,10 @@ export const operatorProductRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const organizationId = await resolveOrgWithMembership(ctx, input.orgSlug);
+      const operatorId = await resolveOrgWithMembership(ctx, input.orgSlug);
       await requireOperatorProductInOrg(
         ctx.db,
-        organizationId,
+        operatorId,
         input.operatorProductId,
       );
 
@@ -436,10 +436,10 @@ export const operatorProductRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const organizationId = await resolveOrgWithMembership(ctx, input.orgSlug);
+      const operatorId = await resolveOrgWithMembership(ctx, input.orgSlug);
       await requireOperatorProductInOrg(
         ctx.db,
-        organizationId,
+        operatorId,
         input.operatorProductId,
       );
 

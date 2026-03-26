@@ -110,7 +110,7 @@ function CustomerDetailPage() {
   );
   const purchasesQuery = useQuery({
     ...trpc.admin.purchase.list.queryOptions({
-      organizationId: customerId,
+      operatorId: customerId,
       startDate: purchaseFilters.dateFrom,
       endDate: purchaseFilters.dateTo,
       businessEntityId: purchaseFilters.businessEntityId,

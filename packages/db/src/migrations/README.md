@@ -15,6 +15,6 @@ When you adopt versioned migrations, baseline from production (`drizzle-kit pull
 ## Materialized views (analytics)
 
 - **`pnpm db:push`** — app tables only (MV is `.existing()` in schema, not pushed).
-- **`pnpm db:migrate`** — creates `analytics_purchase_daily_summary` + indexes via `0000_analytics_purchase_daily_summary.sql`.
+- **`pnpm db:migrate`** — `0000_analytics_purchase_daily_summary.sql`: analytics MV + indexes, then audit schema/triggers.
 
 Docs: `packages/db/docs/analytics-mv.md`

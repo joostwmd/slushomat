@@ -6,7 +6,7 @@ import {
   timestamp,
 } from "drizzle-orm/pg-core";
 
-import { organization } from "./auth";
+import { operator } from "./auth";
 import { productImage } from "./product-image";
 import { templateProduct } from "./template-products";
 
@@ -14,9 +14,9 @@ export const operatorProduct = pgTable(
   "operator_product",
   {
     id: text("id").primaryKey(),
-    organizationId: text("organization_id")
+    operatorId: text("operator_id")
       .notNull()
-      .references(() => organization.id, { onDelete: "cascade" }),
+      .references(() => operator.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     priceInCents: integer("price_in_cents").notNull(),
     /** German VAT: 7 or 19 (validated in tRPC). */
@@ -35,7 +35,7 @@ export const operatorProduct = pgTable(
       .notNull(),
   },
   (table) => [
-    index("operator_product_organization_id_idx").on(table.organizationId),
+    index("operator_product_operator_id_idx").on(table.operatorId),
     index("operator_product_source_template_product_id_idx").on(
       table.sourceTemplateProductId,
     ),

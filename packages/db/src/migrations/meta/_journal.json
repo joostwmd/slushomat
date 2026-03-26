@@ -8,13 +8,6 @@
       "when": 1740249600000,
       "tag": "0000_analytics_purchase_daily_summary",
       "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1742755200000,
-      "tag": "0001_audit_record_version",
-      "breakpoints": true
     }
   ]
 }

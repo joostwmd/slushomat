@@ -6,12 +6,13 @@ import {
   machine,
   machineVersion,
   operatorContract,
-  organizationMachineDisplayName,
+  operatorMachine,
+  operatorMachineDisplayName,
 } from "@slushomat/db/schema";
-import { ensureOrganizationMachineDisplayNames } from "../../lib/organization-machine-display-name";
+import { ensureOperatorMachineDisplayNames } from "../../lib/operator-machine-display-name";
 import {
   assertUserMemberOfOrg,
-  getOrganizationIdForSlug,
+  getOperatorIdForSlug,
 } from "../../lib/org-scope";
 import { router } from "../init";
 import { operatorProcedure } from "../procedures";
@@ -35,69 +36,70 @@ async function resolveOrgWithMembership(
   ctx: { db: typeof db; user: { id: string } },
   orgSlug: string,
 ): Promise<string> {
-  const organizationId = await getOrganizationIdForSlug(ctx.db, orgSlug);
-  await assertUserMemberOfOrg(ctx.db, ctx.user.id, organizationId);
-  return organizationId;
+  const operatorId = await getOperatorIdForSlug(ctx.db, orgSlug);
+  await assertUserMemberOfOrg(ctx.db, ctx.user.id, operatorId);
+  return operatorId;
 }
 
-async function assertMachineLinkedToOrg(
+async function assertMachineLinkedToOperator(
   dbClient: typeof db,
-  organizationId: string,
+  operatorId: string,
   machineId: string,
 ): Promise<void> {
   const [row] = await dbClient
     .select({ id: operatorContract.id })
     .from(operatorContract)
+    .innerJoin(
+      operatorMachine,
+      eq(operatorContract.operatorMachineId, operatorMachine.id),
+    )
     .where(
       and(
-        eq(operatorContract.organizationId, organizationId),
-        eq(operatorContract.machineId, machineId),
+        eq(operatorContract.operatorId, operatorId),
+        eq(operatorMachine.machineId, machineId),
       ),
     )
     .limit(1);
   if (!row) {
     throw new TRPCError({
       code: "NOT_FOUND",
-      message: "Machine not found for this organization",
+      message: "Machine not found for this operator",
     });
   }
 }
 
 export const operatorMachineRouter = router({
   /**
-   * Machines that have at least one operator contract with this organization.
+   * Machines that have at least one operator contract with this operator.
    */
   list: operatorProcedure
     .input(orgSlugInput)
     .output(z.array(machineCardSchema))
     .query(async ({ ctx, input }) => {
-      const organizationId = await resolveOrgWithMembership(
-        ctx,
-        input.orgSlug,
-      );
+      const operatorId = await resolveOrgWithMembership(ctx, input.orgSlug);
 
       const contractRows = await ctx.db
-        .select({ machineId: operatorContract.machineId })
+        .select({ machineId: operatorMachine.machineId })
         .from(operatorContract)
-        .where(eq(operatorContract.organizationId, organizationId));
+        .innerJoin(
+          operatorMachine,
+          eq(operatorContract.operatorMachineId, operatorMachine.id),
+        )
+        .where(eq(operatorContract.operatorId, operatorId));
 
       const uniqueIds = [...new Set(contractRows.map((r) => r.machineId))];
       if (uniqueIds.length === 0) {
         return [];
       }
 
-      await ensureOrganizationMachineDisplayNames(
-        ctx.db,
-        organizationId,
-        uniqueIds,
-      );
+      await ensureOperatorMachineDisplayNames(ctx.db, operatorId, uniqueIds);
 
       return ctx.db
         .select({
           id: machine.id,
           versionNumber: machineVersion.versionNumber,
           internalName: machine.internalName,
-          orgDisplayName: organizationMachineDisplayName.orgDisplayName,
+          orgDisplayName: operatorMachineDisplayName.orgDisplayName,
           comments: machine.comments,
           disabled: machine.disabled,
           createdAt: machine.createdAt,
@@ -109,13 +111,10 @@ export const operatorMachineRouter = router({
           eq(machine.machineVersionId, machineVersion.id),
         )
         .innerJoin(
-          organizationMachineDisplayName,
+          operatorMachineDisplayName,
           and(
-            eq(organizationMachineDisplayName.machineId, machine.id),
-            eq(
-              organizationMachineDisplayName.organizationId,
-              organizationId,
-            ),
+            eq(operatorMachineDisplayName.machineId, machine.id),
+            eq(operatorMachineDisplayName.operatorId, operatorId),
           ),
         )
         .where(inArray(machine.id, uniqueIds))
@@ -130,28 +129,23 @@ export const operatorMachineRouter = router({
     )
     .output(machineCardSchema)
     .query(async ({ ctx, input }) => {
-      const organizationId = await resolveOrgWithMembership(
-        ctx,
-        input.orgSlug,
-      );
-      await assertMachineLinkedToOrg(
+      const operatorId = await resolveOrgWithMembership(ctx, input.orgSlug);
+      await assertMachineLinkedToOperator(
         ctx.db,
-        organizationId,
+        operatorId,
         input.machineId,
       );
 
-      await ensureOrganizationMachineDisplayNames(
-        ctx.db,
-        organizationId,
-        [input.machineId],
-      );
+      await ensureOperatorMachineDisplayNames(ctx.db, operatorId, [
+        input.machineId,
+      ]);
 
       const [row] = await ctx.db
         .select({
           id: machine.id,
           versionNumber: machineVersion.versionNumber,
           internalName: machine.internalName,
-          orgDisplayName: organizationMachineDisplayName.orgDisplayName,
+          orgDisplayName: operatorMachineDisplayName.orgDisplayName,
           comments: machine.comments,
           disabled: machine.disabled,
           createdAt: machine.createdAt,
@@ -163,13 +157,10 @@ export const operatorMachineRouter = router({
           eq(machine.machineVersionId, machineVersion.id),
         )
         .innerJoin(
-          organizationMachineDisplayName,
+          operatorMachineDisplayName,
           and(
-            eq(organizationMachineDisplayName.machineId, machine.id),
-            eq(
-              organizationMachineDisplayName.organizationId,
-              organizationId,
-            ),
+            eq(operatorMachineDisplayName.machineId, machine.id),
+            eq(operatorMachineDisplayName.operatorId, operatorId),
           ),
         )
         .where(eq(machine.id, input.machineId))
@@ -198,29 +189,26 @@ export const operatorMachineRouter = router({
     )
     .output(z.object({ ok: z.literal(true) }))
     .mutation(async ({ ctx, input }) => {
-      const organizationId = await resolveOrgWithMembership(
-        ctx,
-        input.orgSlug,
-      );
-      await assertMachineLinkedToOrg(
+      const operatorId = await resolveOrgWithMembership(ctx, input.orgSlug);
+      await assertMachineLinkedToOperator(
         ctx.db,
-        organizationId,
+        operatorId,
         input.machineId,
       );
 
       const name = input.orgDisplayName.trim();
 
       await ctx.db
-        .insert(organizationMachineDisplayName)
+        .insert(operatorMachineDisplayName)
         .values({
-          organizationId,
+          operatorId,
           machineId: input.machineId,
           orgDisplayName: name,
         })
         .onConflictDoUpdate({
           target: [
-            organizationMachineDisplayName.organizationId,
-            organizationMachineDisplayName.machineId,
+            operatorMachineDisplayName.operatorId,
+            operatorMachineDisplayName.machineId,
           ],
           set: { orgDisplayName: name },
         });

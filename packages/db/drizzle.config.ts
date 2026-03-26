@@ -18,7 +18,9 @@ const schemaFiles = [
   "./src/schema/machine-lifecycle.ts",
   "./src/schema/purchase.ts",
   "./src/schema/analytics-purchase-daily-summary.ts",
-  "./src/schema/organization-machine-display.ts",
+  "./src/schema/operator-machine-display.ts",
+  "./src/schema/document.ts",
+  "./src/schema/invoice.ts",
 ] as const;
 
 export default defineConfig({

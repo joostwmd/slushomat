@@ -5,8 +5,8 @@ import type * as schema from "@slushomat/db/schema";
 import {
   analyticsPurchaseDailySummary,
   machine,
-  organization,
-  organizationMachineDisplayName,
+  operator,
+  operatorMachineDisplayName,
   purchase,
 } from "@slushomat/db/schema";
 
@@ -35,6 +35,7 @@ export type PlatformDashboardPayload = {
     platformShareCents: number;
   }[];
   topOrganizations: {
+    /** Operator (tenant) id. */
     organizationId: string;
     name: string;
     grossCents: number;
@@ -181,17 +182,17 @@ export async function buildPlatformDashboard(
   const grossSum = sum(purchase.amountInCents);
   const topOrgRows = await db
     .select({
-      organizationId: purchase.organizationId,
-      name: organization.name,
+      organizationId: purchase.operatorId,
+      name: operator.name,
       grossCents: grossSum,
       purchaseCount: count().as("purchaseCount"),
     })
     .from(purchase)
-    .innerJoin(organization, eq(purchase.organizationId, organization.id))
+    .innerJoin(operator, eq(purchase.operatorId, operator.id))
     .where(
       and(gte(purchaseBerlinDay, startDate), lte(purchaseBerlinDay, endDate)),
     )
-    .groupBy(purchase.organizationId, organization.name)
+    .groupBy(purchase.operatorId, operator.name)
     .orderBy(desc(grossSum))
     .limit(20);
 
@@ -206,7 +207,7 @@ export async function buildPlatformDashboard(
     .select({
       machineId: purchase.machineId,
       label: machineAnalyticsLabel(
-        organizationMachineDisplayName.orgDisplayName,
+        operatorMachineDisplayName.orgDisplayName,
         machine.internalName,
         purchase.machineId,
       ),
@@ -216,13 +217,10 @@ export async function buildPlatformDashboard(
     .from(purchase)
     .leftJoin(machine, eq(purchase.machineId, machine.id))
     .leftJoin(
-      organizationMachineDisplayName,
+      operatorMachineDisplayName,
       and(
-        eq(organizationMachineDisplayName.machineId, purchase.machineId),
-        eq(
-          organizationMachineDisplayName.organizationId,
-          purchase.organizationId,
-        ),
+        eq(operatorMachineDisplayName.machineId, purchase.machineId),
+        eq(operatorMachineDisplayName.operatorId, purchase.operatorId),
       ),
     )
     .where(
@@ -233,7 +231,7 @@ export async function buildPlatformDashboard(
     )
     .groupBy(
       purchase.machineId,
-      organizationMachineDisplayName.orgDisplayName,
+      operatorMachineDisplayName.orgDisplayName,
       machine.internalName,
     );
 

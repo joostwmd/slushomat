@@ -3,14 +3,10 @@ import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { db } from "@slushomat/db";
+import { businessEntity, machine, operatorMachine } from "@slushomat/db/schema";
 import {
-  businessEntity,
-  machine,
-  machineDeployment,
-} from "@slushomat/db/schema";
-import {
-  assertBusinessEntityBelongsToOrg,
-  getOpenDeploymentForMachine,
+  assertBusinessEntityBelongsToOperator,
+  getOpenOperatorMachineForMachine,
 } from "../../lib/machine-lifecycle";
 import { router } from "../init";
 import { adminProcedure } from "../procedures";
@@ -19,26 +15,28 @@ const deploymentRow = z.object({
   id: z.string(),
   machineId: z.string(),
   businessEntityId: z.string(),
+  operatorId: z.string(),
   machineDisplayName: z.string(),
   businessEntityDisplayName: z.string(),
-  startedAt: z.date(),
-  endedAt: z.date().nullable(),
+  deployedAt: z.date(),
+  undeployedAt: z.date().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
 
 const deploymentSelectShape = {
-  id: machineDeployment.id,
-  machineId: machineDeployment.machineId,
-  businessEntityId: machineDeployment.businessEntityId,
+  id: operatorMachine.id,
+  machineId: operatorMachine.machineId,
+  businessEntityId: operatorMachine.businessEntityId,
+  operatorId: operatorMachine.operatorId,
   machineDisplayName: sql<string>`coalesce(nullif(trim(${machine.internalName}), ''), 'Unnamed machine')`.as(
     "machine_display_name",
   ),
   businessEntityDisplayName: businessEntity.name,
-  startedAt: machineDeployment.startedAt,
-  endedAt: machineDeployment.endedAt,
-  createdAt: machineDeployment.createdAt,
-  updatedAt: machineDeployment.updatedAt,
+  deployedAt: operatorMachine.deployedAt,
+  undeployedAt: operatorMachine.undeployedAt,
+  createdAt: operatorMachine.createdAt,
+  updatedAt: operatorMachine.updatedAt,
 } as const;
 
 async function requireMachine(ctx: { db: typeof db }, machineId: string) {
@@ -61,13 +59,13 @@ export const adminMachineDeploymentRouter = router({
     .query(async ({ ctx }) => {
       return ctx.db
         .select(deploymentSelectShape)
-        .from(machineDeployment)
-        .innerJoin(machine, eq(machineDeployment.machineId, machine.id))
+        .from(operatorMachine)
+        .innerJoin(machine, eq(operatorMachine.machineId, machine.id))
         .innerJoin(
           businessEntity,
-          eq(machineDeployment.businessEntityId, businessEntity.id),
+          eq(operatorMachine.businessEntityId, businessEntity.id),
         )
-        .orderBy(desc(machineDeployment.startedAt));
+        .orderBy(desc(operatorMachine.deployedAt));
     }),
 
   listOpenForMachine: adminProcedure
@@ -76,16 +74,16 @@ export const adminMachineDeploymentRouter = router({
     .query(async ({ ctx, input }) => {
       return ctx.db
         .select(deploymentSelectShape)
-        .from(machineDeployment)
-        .innerJoin(machine, eq(machineDeployment.machineId, machine.id))
+        .from(operatorMachine)
+        .innerJoin(machine, eq(operatorMachine.machineId, machine.id))
         .innerJoin(
           businessEntity,
-          eq(machineDeployment.businessEntityId, businessEntity.id),
+          eq(operatorMachine.businessEntityId, businessEntity.id),
         )
         .where(
           and(
-            eq(machineDeployment.machineId, input.machineId),
-            isNull(machineDeployment.endedAt),
+            eq(operatorMachine.machineId, input.machineId),
+            isNull(operatorMachine.undeployedAt),
           ),
         );
     }),
@@ -95,52 +93,57 @@ export const adminMachineDeploymentRouter = router({
       z.object({
         machineId: z.string().min(1),
         businessEntityId: z.string().min(1),
-        /** Organization that owns the business entity (for validation). */
-        organizationId: z.string().min(1),
+        /** Operator that owns the business entity (for validation). */
+        operatorId: z.string().min(1),
       }),
     )
     .output(deploymentRow)
     .mutation(async ({ ctx, input }) => {
       await requireMachine(ctx, input.machineId);
-      await assertBusinessEntityBelongsToOrg(
+      await assertBusinessEntityBelongsToOperator(
         ctx.db,
         input.businessEntityId,
-        input.organizationId,
+        input.operatorId,
       );
 
       const id = randomUUID();
 
       await ctx.db.transaction(async (tx) => {
-        const existing = await getOpenDeploymentForMachine(tx, input.machineId);
+        const existing = await getOpenOperatorMachineForMachine(
+          tx,
+          input.machineId,
+        );
         if (existing) {
           await tx
-            .update(machineDeployment)
-            .set({ endedAt: new Date() })
-            .where(eq(machineDeployment.id, existing.id));
+            .update(operatorMachine)
+            .set({ undeployedAt: new Date(), status: "inactive" })
+            .where(eq(operatorMachine.id, existing.id));
         }
 
-        await tx.insert(machineDeployment).values({
+        await tx.insert(operatorMachine).values({
           id,
+          operatorId: input.operatorId,
           machineId: input.machineId,
           businessEntityId: input.businessEntityId,
+          status: "active",
         });
       });
 
       const [enriched] = await ctx.db
         .select(deploymentSelectShape)
-        .from(machineDeployment)
-        .innerJoin(machine, eq(machineDeployment.machineId, machine.id))
+        .from(operatorMachine)
+        .innerJoin(machine, eq(operatorMachine.machineId, machine.id))
         .innerJoin(
           businessEntity,
-          eq(machineDeployment.businessEntityId, businessEntity.id),
+          eq(operatorMachine.businessEntityId, businessEntity.id),
         )
-        .where(eq(machineDeployment.id, id))
+        .where(eq(operatorMachine.id, id))
         .limit(1);
 
       if (!enriched) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to load deployment after start",
+          message: "Failed to load operator machine after start",
         });
       }
       return enriched;
@@ -152,48 +155,48 @@ export const adminMachineDeploymentRouter = router({
     .mutation(async ({ ctx, input }) => {
       const [current] = await ctx.db
         .select()
-        .from(machineDeployment)
-        .where(eq(machineDeployment.id, input.deploymentId))
+        .from(operatorMachine)
+        .where(eq(operatorMachine.id, input.deploymentId))
         .limit(1);
       if (!current) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Deployment not found",
+          message: "Operator machine assignment not found",
         });
       }
-      if (current.endedAt) {
+      if (current.undeployedAt) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Deployment is already ended",
+          message: "Assignment is already ended",
         });
       }
       const [updated] = await ctx.db
-        .update(machineDeployment)
-        .set({ endedAt: new Date() })
-        .where(eq(machineDeployment.id, input.deploymentId))
-        .returning({ id: machineDeployment.id });
+        .update(operatorMachine)
+        .set({ undeployedAt: new Date(), status: "inactive" })
+        .where(eq(operatorMachine.id, input.deploymentId))
+        .returning({ id: operatorMachine.id });
       if (!updated) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to end deployment",
+          message: "Failed to end assignment",
         });
       }
 
       const [enriched] = await ctx.db
         .select(deploymentSelectShape)
-        .from(machineDeployment)
-        .innerJoin(machine, eq(machineDeployment.machineId, machine.id))
+        .from(operatorMachine)
+        .innerJoin(machine, eq(operatorMachine.machineId, machine.id))
         .innerJoin(
           businessEntity,
-          eq(machineDeployment.businessEntityId, businessEntity.id),
+          eq(operatorMachine.businessEntityId, businessEntity.id),
         )
-        .where(eq(machineDeployment.id, input.deploymentId))
+        .where(eq(operatorMachine.id, input.deploymentId))
         .limit(1);
 
       if (!enriched) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to load deployment after end",
+          message: "Failed to load assignment after end",
         });
       }
       return enriched;

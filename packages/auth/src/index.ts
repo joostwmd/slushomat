@@ -114,6 +114,27 @@ export const auth = betterAuth({
       allowUserToCreateOrganization: async (user) => {
         return user.role === "admin";
       },
+      schema: {
+        organization: {
+          modelName: "operator",
+        },
+        member: {
+          fields: {
+            organizationId: "operator_id",
+          },
+        },
+        invitation: {
+          fields: {
+            organizationId: "operator_id",
+          },
+        },
+        session: {
+          fields: {
+            activeOrganizationId: "active_operator_id",
+            activeOrganizationSlug: "active_operator_slug",
+          },
+        },
+      },
     }),
     // Single options object (not an array) = one implicit "default" API key profile — same idea as `apiKey()` in the docs, with SLUSH_ + metadata for devices.
     apiKey({

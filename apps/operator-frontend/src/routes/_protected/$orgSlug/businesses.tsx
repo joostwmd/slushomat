@@ -36,7 +36,7 @@ function errMessage(e: unknown): string {
 
 type EntityRow = {
   id: string;
-  organizationId: string;
+  operatorId: string;
   name: string;
   legalName: string;
   legalForm: string;

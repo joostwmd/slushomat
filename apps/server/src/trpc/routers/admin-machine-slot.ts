@@ -2,11 +2,12 @@ import { and, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import {
-  machineSlotConfig,
+  machineSlot,
   operatorContract,
+  operatorMachine,
   operatorProduct,
 } from "@slushomat/db/schema";
-import { getOpenDeploymentForMachine } from "../../lib/machine-lifecycle";
+import { getOpenOperatorMachineForMachine } from "../../lib/machine-lifecycle";
 import { router } from "../init";
 import { adminProcedure } from "../procedures";
 
@@ -34,10 +35,14 @@ export const adminMachineSlotRouter = router({
       const [link] = await ctx.db
         .select({ id: operatorContract.id })
         .from(operatorContract)
+        .innerJoin(
+          operatorMachine,
+          eq(operatorContract.operatorMachineId, operatorMachine.id),
+        )
         .where(
           and(
-            eq(operatorContract.organizationId, input.organizationId),
-            eq(operatorContract.machineId, input.machineId),
+            eq(operatorContract.operatorId, input.organizationId),
+            eq(operatorMachine.machineId, input.machineId),
           ),
         )
         .limit(1);
@@ -45,16 +50,16 @@ export const adminMachineSlotRouter = router({
       if (!link) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Machine not found for this organization",
+          message: "Machine not found for this operator",
         });
       }
 
-      const deployment = await getOpenDeploymentForMachine(
+      const openOm = await getOpenOperatorMachineForMachine(
         ctx.db,
         input.machineId,
       );
 
-      if (!deployment) {
+      if (!openOm) {
         return {
           deploymentId: null,
           slots: { left: null, middle: null, right: null },
@@ -63,15 +68,15 @@ export const adminMachineSlotRouter = router({
 
       const rows = await ctx.db
         .select({
-          slot: machineSlotConfig.slot,
+          slot: machineSlot.slot,
           productName: operatorProduct.name,
         })
-        .from(machineSlotConfig)
+        .from(machineSlot)
         .leftJoin(
           operatorProduct,
-          eq(machineSlotConfig.operatorProductId, operatorProduct.id),
+          eq(machineSlot.operatorProductId, operatorProduct.id),
         )
-        .where(eq(machineSlotConfig.machineDeploymentId, deployment.id));
+        .where(eq(machineSlot.operatorMachineId, openOm.id));
 
       const slots = {
         left: null as string | null,
@@ -86,6 +91,6 @@ export const adminMachineSlotRouter = router({
         }
       }
 
-      return { deploymentId: deployment.id, slots };
+      return { deploymentId: openOm.id, slots };
     }),
 });

@@ -1,9 +1,9 @@
 import { integer, pgEnum, text, timestamp } from "drizzle-orm/pg-core";
 
 import { defineVersionedEntity } from "../model-factory";
-import { organization } from "./auth";
+import { operator } from "./auth";
 import { businessEntity } from "./business-entity";
-import { machine } from "./machines";
+import { operatorMachine } from "./machine-lifecycle";
 
 export const contractStatusEnum = pgEnum("contract_status", [
   "draft",
@@ -14,14 +14,14 @@ export const contractStatusEnum = pgEnum("contract_status", [
 const contractModel = defineVersionedEntity({
   name: "operator_contract",
   scope: "org",
-  references: { organization },
+  references: { operator },
   baseColumns: {
     businessEntityId: text("business_entity_id")
       .notNull()
       .references(() => businessEntity.id, { onDelete: "restrict" }),
-    machineId: text("machine_id")
+    operatorMachineId: text("operator_machine_id")
       .notNull()
-      .references(() => machine.id, { onDelete: "restrict" }),
+      .references(() => operatorMachine.id, { onDelete: "restrict" }),
   },
   versionColumns: {
     status: contractStatusEnum("status").notNull(),
@@ -29,9 +29,6 @@ const contractModel = defineVersionedEntity({
     endedAt: timestamp("ended_at"),
     monthlyRentInCents: integer("monthly_rent_in_cents").notNull(),
     revenueShareBasisPoints: integer("revenue_share_basis_points").notNull(),
-    /** Supabase Storage — same pattern as product images (T03). */
-    pdfBucket: text("pdf_bucket"),
-    pdfObjectPath: text("pdf_object_path"),
     notes: text("notes"),
   },
 });

@@ -1,17 +1,17 @@
 /**
  * Session shape for model-factory repositories (Better Auth–compatible).
- * Uses `organizationId` (Slushomat naming), not `organisationId`.
+ * Uses `operatorId` (tenant / Better Auth “organization”).
  */
 export interface Session {
   user: { id: string; name: string; email: string };
-  organizationId: string;
+  operatorId: string;
 }
 
 /** Columns managed by factories — callers must not set these on create/update. */
 export const SYSTEM_KEYS = [
   "id",
   "entityId",
-  "organizationId",
+  "operatorId",
   "userId",
   "versionNumber",
   "currentVersionId",

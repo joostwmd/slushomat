@@ -3,7 +3,7 @@ import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 export type StaticEntityScope = "org" | "user" | "org-user" | "app";
 
-/** Table with an `id` column (e.g. `organization`, `user` from auth schema). */
+/** Table with an `id` column (e.g. `operator`, `user` from auth schema). */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type RefTable = any;
 
@@ -15,9 +15,9 @@ export interface DefineStaticEntityConfig {
   /** Drizzle column builders, e.g. `{ name: text("name").notNull() }`. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   columns: Record<string, any>;
-  /** Required for `org` / `org-user` — pass e.g. `organization` from auth schema. */
+  /** Required for `org` / `org-user` — pass e.g. `operator` from auth schema. */
   references?: {
-    organization?: RefTable;
+    operator?: RefTable;
     user?: RefTable;
   };
 }
@@ -30,10 +30,10 @@ export function defineStaticEntity(config: DefineStaticEntityConfig): any {
 
   if (
     (scope === "org" || scope === "org-user") &&
-    !references?.organization
+    !references?.operator
   ) {
     throw new Error(
-      `defineStaticEntity("${name}"): scope "${scope}" requires references.organization`,
+      `defineStaticEntity("${name}"): scope "${scope}" requires references.operator`,
     );
   }
   if (
@@ -45,15 +45,15 @@ export function defineStaticEntity(config: DefineStaticEntityConfig): any {
     );
   }
 
-  const orgTable = references?.organization;
+  const operatorTable = references?.operator;
   const userTable = references?.user;
 
   const orgPart =
     scope === "org" || scope === "org-user"
       ? {
-          organizationId: text("organization_id")
+          operatorId: text("operator_id")
             .notNull()
-            .references(() => orgTable.id, { onDelete: "cascade" }),
+            .references(() => operatorTable.id, { onDelete: "cascade" }),
         }
       : {};
 
@@ -79,13 +79,13 @@ export function defineStaticEntity(config: DefineStaticEntityConfig): any {
   };
 
   const buildIndexes = (t: {
-    organizationId?: unknown;
+    operatorId?: unknown;
     userId?: unknown;
   }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const out: any[] = [];
-    if ("organizationId" in t && t.organizationId) {
-      out.push(index(`${name}_organization_id_idx`).on(t.organizationId as never));
+    if ("operatorId" in t && t.operatorId) {
+      out.push(index(`${name}_operator_id_idx`).on(t.operatorId as never));
     }
     if ("userId" in t && t.userId) {
       out.push(index(`${name}_user_id_idx`).on(t.userId as never));

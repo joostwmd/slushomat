@@ -4,12 +4,10 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { db } from "@slushomat/db";
 import { businessEntity } from "@slushomat/db/schema";
-import {
-  assertBusinessEntityBelongsToOrg,
-} from "../../lib/machine-lifecycle";
+import { assertBusinessEntityBelongsToOperator } from "../../lib/machine-lifecycle";
 import {
   assertUserMemberOfOrg,
-  getOrganizationIdForSlug,
+  getOperatorIdForSlug,
 } from "../../lib/org-scope";
 import { router } from "../init";
 import { operatorProcedure } from "../procedures";
@@ -20,7 +18,7 @@ const orgSlugInput = z.object({
 
 const entityRow = z.object({
   id: z.string(),
-  organizationId: z.string(),
+  operatorId: z.string(),
   name: z.string(),
   legalName: z.string(),
   legalForm: z.string(),
@@ -40,9 +38,9 @@ async function resolveOrgWithMembership(
   ctx: { db: typeof db; user: { id: string } },
   orgSlug: string,
 ): Promise<string> {
-  const organizationId = await getOrganizationIdForSlug(ctx.db, orgSlug);
-  await assertUserMemberOfOrg(ctx.db, ctx.user.id, organizationId);
-  return organizationId;
+  const operatorId = await getOperatorIdForSlug(ctx.db, orgSlug);
+  await assertUserMemberOfOrg(ctx.db, ctx.user.id, operatorId);
+  return operatorId;
 }
 
 export const operatorBusinessEntityRouter = router({
@@ -50,7 +48,7 @@ export const operatorBusinessEntityRouter = router({
     .input(orgSlugInput)
     .output(z.array(entityRow))
     .query(async ({ ctx, input }) => {
-      const organizationId = await resolveOrgWithMembership(
+      const operatorId = await resolveOrgWithMembership(
         ctx,
         input.orgSlug,
       );
@@ -59,7 +57,7 @@ export const operatorBusinessEntityRouter = router({
         .from(businessEntity)
         .where(
           and(
-            eq(businessEntity.organizationId, organizationId),
+            eq(businessEntity.operatorId, operatorId),
             isNull(businessEntity.deletedAt),
           ),
         )
@@ -82,7 +80,7 @@ export const operatorBusinessEntityRouter = router({
     )
     .output(entityRow)
     .mutation(async ({ ctx, input }) => {
-      const organizationId = await resolveOrgWithMembership(
+      const operatorId = await resolveOrgWithMembership(
         ctx,
         input.orgSlug,
       );
@@ -91,7 +89,7 @@ export const operatorBusinessEntityRouter = router({
         .insert(businessEntity)
         .values({
           id,
-          organizationId,
+          operatorId,
           name: input.name.trim(),
           legalName: input.legalName.trim(),
           legalForm: input.legalForm.trim(),
@@ -128,14 +126,14 @@ export const operatorBusinessEntityRouter = router({
     )
     .output(entityRow)
     .mutation(async ({ ctx, input }) => {
-      const organizationId = await resolveOrgWithMembership(
+      const operatorId = await resolveOrgWithMembership(
         ctx,
         input.orgSlug,
       );
-      await assertBusinessEntityBelongsToOrg(
+      await assertBusinessEntityBelongsToOperator(
         ctx.db,
         input.id,
-        organizationId,
+        operatorId,
       );
       const updated = await ctx.db
         .update(businessEntity)
@@ -169,14 +167,14 @@ export const operatorBusinessEntityRouter = router({
     )
     .output(entityRow)
     .mutation(async ({ ctx, input }) => {
-      const organizationId = await resolveOrgWithMembership(
+      const operatorId = await resolveOrgWithMembership(
         ctx,
         input.orgSlug,
       );
-      await assertBusinessEntityBelongsToOrg(
+      await assertBusinessEntityBelongsToOperator(
         ctx.db,
         input.id,
-        organizationId,
+        operatorId,
       );
       const updated = await ctx.db
         .update(businessEntity)

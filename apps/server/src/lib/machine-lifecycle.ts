@@ -2,16 +2,16 @@ import { and, eq, isNull, ne } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import {
   businessEntity,
-  machineDeployment,
   operatorContract,
   operatorContractVersion,
+  operatorMachine,
 } from "@slushomat/db/schema";
 import type { DbClient } from "./org-scope";
 
-export async function assertBusinessEntityBelongsToOrg(
+export async function assertBusinessEntityBelongsToOperator(
   dbClient: DbClient,
   entityId: string,
-  organizationId: string,
+  operatorId: string,
 ): Promise<void> {
   const [row] = await dbClient
     .select({ id: businessEntity.id })
@@ -19,7 +19,7 @@ export async function assertBusinessEntityBelongsToOrg(
     .where(
       and(
         eq(businessEntity.id, entityId),
-        eq(businessEntity.organizationId, organizationId),
+        eq(businessEntity.operatorId, operatorId),
         isNull(businessEntity.deletedAt),
       ),
     )
@@ -27,27 +27,34 @@ export async function assertBusinessEntityBelongsToOrg(
   if (!row) {
     throw new TRPCError({
       code: "BAD_REQUEST",
-      message: "Business entity not found for this organization",
+      message: "Business entity not found for this operator",
     });
   }
 }
 
-export async function getOpenDeploymentForMachine(
+/** @deprecated Use {@link assertBusinessEntityBelongsToOperator} */
+export const assertBusinessEntityBelongsToOrg =
+  assertBusinessEntityBelongsToOperator;
+
+export async function getOpenOperatorMachineForMachine(
   dbClient: DbClient,
   machineId: string,
-): Promise<typeof machineDeployment.$inferSelect | null> {
+): Promise<typeof operatorMachine.$inferSelect | null> {
   const [row] = await dbClient
     .select()
-    .from(machineDeployment)
+    .from(operatorMachine)
     .where(
       and(
-        eq(machineDeployment.machineId, machineId),
-        isNull(machineDeployment.endedAt),
+        eq(operatorMachine.machineId, machineId),
+        isNull(operatorMachine.undeployedAt),
       ),
     )
     .limit(1);
   return row ?? null;
 }
+
+/** @deprecated Use {@link getOpenOperatorMachineForMachine} */
+export const getOpenDeploymentForMachine = getOpenOperatorMachineForMachine;
 
 /**
  * Throws CONFLICT if another contract for this machine already has an **active** current version.
@@ -58,7 +65,7 @@ export async function assertAtMostOneActiveContractForMachine(
   excludeContractBaseId?: string,
 ): Promise<void> {
   const conditions = [
-    eq(operatorContract.machineId, machineId),
+    eq(operatorMachine.machineId, machineId),
     eq(operatorContractVersion.status, "active"),
   ];
   if (excludeContractBaseId) {
@@ -68,6 +75,10 @@ export async function assertAtMostOneActiveContractForMachine(
   const rows = await dbClient
     .select({ id: operatorContract.id })
     .from(operatorContract)
+    .innerJoin(
+      operatorMachine,
+      eq(operatorContract.operatorMachineId, operatorMachine.id),
+    )
     .innerJoin(
       operatorContractVersion,
       eq(operatorContract.currentVersionId, operatorContractVersion.id),

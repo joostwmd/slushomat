@@ -89,8 +89,9 @@ function bpToPercent(bp: number): string {
 
 type ContractRow = {
   id: string;
-  organizationId: string;
+  operatorId: string;
   businessEntityId: string;
+  operatorMachineId: string;
   machineId: string;
   machineInternalName: string;
   machineOrgDisplayName: string | null;
@@ -123,7 +124,7 @@ function AdminContractsPage() {
 
   const listQuery = useQuery({
     ...trpc.admin.operatorContract.list.queryOptions({
-      organizationId: filterOrg || undefined,
+      operatorId: filterOrg || undefined,
       machineId: filterMachine || undefined,
       businessEntityId: filterEntity || undefined,
       status: filterStatus || undefined,
@@ -239,12 +240,12 @@ function AdminContractsPage() {
 
   const [pendingPdf, setPendingPdf] = useState<File | null>(null);
 
-  const detailOrgId = detailQuery.data?.contract.organizationId ?? "";
+  const detailOrgId = detailQuery.data?.contract.operatorId ?? "";
 
   async function uploadPdf(
     contractId: string,
     versionId: string,
-    organizationId: string,
+    operatorId: string,
     file: File,
   ) {
     if (file.size > PDF_MAX) throw new Error("PDF max 10 MB");
@@ -252,7 +253,7 @@ function AdminContractsPage() {
     const signed = await requestPdfMutation.mutateAsync({
       contractId,
       versionId,
-      organizationId,
+      operatorId,
       contentType: "application/pdf",
       fileSizeBytes: file.size,
     });
@@ -271,7 +272,7 @@ function AdminContractsPage() {
     await confirmPdfMutation.mutateAsync({
       contractId,
       versionId,
-      organizationId,
+      operatorId,
       objectPath: signed.path,
     });
   }
@@ -310,7 +311,7 @@ function AdminContractsPage() {
       return;
     }
     createMutation.mutate({
-      organizationId: createOrg,
+      operatorId: createOrg,
       businessEntityId: createEntity,
       machineId: createMachine,
       version: {
@@ -355,7 +356,7 @@ function AdminContractsPage() {
     }
     addVersionMutation.mutate({
       contractId: detailId,
-      organizationId: detailOrgId,
+      operatorId: detailOrgId,
       version: {
         status: vStatus,
         effectiveDate: new Date(vEffective),

@@ -3,12 +3,14 @@ import { z } from "zod";
 import {
   businessEntity,
   machine,
+  machineSlot,
   operatorContract,
+  operatorMachine,
   operatorProduct,
-  organizationMachineDisplayName,
+  operatorMachineDisplayName,
   purchase,
 } from "@slushomat/db/schema";
-import { ensureOrganizationMachineDisplayNames } from "../../lib/organization-machine-display-name";
+import { ensureOperatorMachineDisplayNames } from "../../lib/operator-machine-display-name";
 import { router } from "../init";
 import { adminProcedure } from "../procedures";
 
@@ -16,7 +18,7 @@ const purchaseRowSchema = z.object({
   id: z.string(),
   machineId: z.string(),
   machineLabel: z.string(),
-  organizationId: z.string(),
+  operatorId: z.string(),
   businessEntityId: z.string().nullable(),
   operatorProductId: z.string(),
   productName: z.string(),
@@ -28,7 +30,7 @@ const purchaseRowSchema = z.object({
 
 const listInputSchema = z
   .object({
-    organizationId: z.string().optional(),
+    operatorId: z.string().optional(),
     machineId: z.string().optional(),
     businessEntityId: z.string().optional(),
     startDate: z.coerce.date().optional(),
@@ -47,8 +49,8 @@ export const adminPurchaseRouter = router({
       const limit = input.limit ?? 100;
       const conds = [];
 
-      if (input.organizationId) {
-        conds.push(eq(purchase.organizationId, input.organizationId));
+      if (input.operatorId) {
+        conds.push(eq(purchase.operatorId, input.operatorId));
       }
       if (input.machineId) {
         conds.push(eq(purchase.machineId, input.machineId));
@@ -63,17 +65,21 @@ export const adminPurchaseRouter = router({
         conds.push(lte(purchase.purchasedAt, input.endDate));
       }
 
-      if (input.organizationId) {
+      if (input.operatorId) {
         const contractMachineRows = await ctx.db
-          .select({ machineId: operatorContract.machineId })
+          .select({ machineId: operatorMachine.machineId })
           .from(operatorContract)
-          .where(eq(operatorContract.organizationId, input.organizationId));
+          .innerJoin(
+            operatorMachine,
+            eq(operatorContract.operatorMachineId, operatorMachine.id),
+          )
+          .where(eq(operatorContract.operatorId, input.operatorId));
         const orgMachineIds = [
           ...new Set(contractMachineRows.map((r) => r.machineId)),
         ];
-        await ensureOrganizationMachineDisplayNames(
+        await ensureOperatorMachineDisplayNames(
           ctx.db,
-          input.organizationId,
+          input.operatorId,
           orgMachineIds,
         );
       }
@@ -82,19 +88,20 @@ export const adminPurchaseRouter = router({
         .select({
           id: purchase.id,
           machineId: purchase.machineId,
-          machineLabel: sql<string>`coalesce(${organizationMachineDisplayName.orgDisplayName}, ${machine.internalName}, ${purchase.machineId})`.as(
+          machineLabel: sql<string>`coalesce(${operatorMachineDisplayName.orgDisplayName}, ${machine.internalName}, ${purchase.machineId})`.as(
             "machine_label",
           ),
-          organizationId: purchase.organizationId,
+          operatorId: purchase.operatorId,
           businessEntityId: purchase.businessEntityId,
           operatorProductId: purchase.operatorProductId,
           productName: operatorProduct.name,
-          slot: purchase.slot,
+          slot: machineSlot.slot,
           amountInCents: purchase.amountInCents,
           purchasedAt: purchase.purchasedAt,
           businessEntityName: businessEntity.name,
         })
         .from(purchase)
+        .innerJoin(machineSlot, eq(purchase.machineSlotId, machineSlot.id))
         .innerJoin(
           operatorProduct,
           eq(purchase.operatorProductId, operatorProduct.id),
@@ -105,13 +112,10 @@ export const adminPurchaseRouter = router({
         )
         .leftJoin(machine, eq(purchase.machineId, machine.id))
         .leftJoin(
-          organizationMachineDisplayName,
+          operatorMachineDisplayName,
           and(
-            eq(organizationMachineDisplayName.machineId, purchase.machineId),
-            eq(
-              organizationMachineDisplayName.organizationId,
-              purchase.organizationId,
-            ),
+            eq(operatorMachineDisplayName.machineId, purchase.machineId),
+            eq(operatorMachineDisplayName.operatorId, purchase.operatorId),
           ),
         );
 

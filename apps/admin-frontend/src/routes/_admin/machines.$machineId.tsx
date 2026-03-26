@@ -48,7 +48,7 @@ function AdminGlobalMachineDetailPage() {
   );
 
   const contract = (contractQuery.data ?? [])[0];
-  const organizationId = contract?.organizationId;
+  const organizationId = contract?.operatorId;
 
   const orgQuery = useQuery({
     ...trpc.admin.customer.get.queryOptions({

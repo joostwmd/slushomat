@@ -91,12 +91,12 @@ function AdminDeploymentsPage() {
     startMutation.mutate({
       machineId,
       businessEntityId,
-      organizationId,
+      operatorId: organizationId,
     });
   };
 
   const rows = listQuery.data ?? [];
-  const openRows = rows.filter((r) => !r.endedAt);
+  const openRows = rows.filter((r) => !r.undeployedAt);
 
   const orgSelectItems = useMemo(() => {
     const items: Record<string, ReactNode> = { [SELECT_NONE]: "— Select —" };
@@ -265,7 +265,7 @@ function AdminDeploymentsPage() {
                       </span>
                     </td>
                     <td className="py-2 pr-2 text-muted-foreground">
-                      {d.startedAt.toLocaleString()}
+                      {d.deployedAt.toLocaleString()}
                     </td>
                     <td className="py-2">
                       <Button

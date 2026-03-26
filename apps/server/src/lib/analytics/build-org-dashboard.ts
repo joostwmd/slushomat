@@ -9,8 +9,9 @@ import {
   businessEntity,
   machine,
   operatorContract,
+  operatorMachine,
   operatorProduct,
-  organizationMachineDisplayName,
+  operatorMachineDisplayName,
   purchase,
 } from "@slushomat/db/schema";
 
@@ -98,10 +99,14 @@ export async function assertMachineBelongsToOrg(
   const row = await db
     .select({ id: operatorContract.id })
     .from(operatorContract)
+    .innerJoin(
+      operatorMachine,
+      eq(operatorContract.operatorMachineId, operatorMachine.id),
+    )
     .where(
       and(
-        eq(operatorContract.organizationId, organizationId),
-        eq(operatorContract.machineId, machineId),
+        eq(operatorContract.operatorId, organizationId),
+        eq(operatorMachine.machineId, machineId),
       ),
     )
     .limit(1);
@@ -125,7 +130,7 @@ async function fetchDailyFromMv(
     { gross: bigint; count: bigint; platform: bigint }
   >();
   const conds = [
-    eq(analyticsPurchaseDailySummary.organizationId, orgId),
+    eq(analyticsPurchaseDailySummary.operatorId, orgId),
     mvBucketDateInRange(
       analyticsPurchaseDailySummary.bucketDate,
       mvStart,
@@ -293,7 +298,7 @@ export async function buildOrgDashboard(
   });
 
   const productConds = [
-    eq(purchase.organizationId, organizationId),
+    eq(purchase.operatorId, organizationId),
     gte(purchaseBerlinDay, startDate),
     lte(purchaseBerlinDay, endDate),
   ];
@@ -330,7 +335,7 @@ export async function buildOrgDashboard(
   }));
 
   const machineConds = [
-    eq(purchase.organizationId, organizationId),
+    eq(purchase.operatorId, organizationId),
     gte(purchaseBerlinDay, startDate),
     lte(purchaseBerlinDay, endDate),
   ];
@@ -342,7 +347,7 @@ export async function buildOrgDashboard(
     .select({
       machineId: purchase.machineId,
       label: machineAnalyticsLabel(
-        organizationMachineDisplayName.orgDisplayName,
+        operatorMachineDisplayName.orgDisplayName,
         machine.internalName,
         purchase.machineId,
       ),
@@ -352,19 +357,16 @@ export async function buildOrgDashboard(
     .from(purchase)
     .leftJoin(machine, eq(purchase.machineId, machine.id))
     .leftJoin(
-      organizationMachineDisplayName,
+      operatorMachineDisplayName,
       and(
-        eq(organizationMachineDisplayName.machineId, purchase.machineId),
-        eq(
-          organizationMachineDisplayName.organizationId,
-          purchase.organizationId,
-        ),
+        eq(operatorMachineDisplayName.machineId, purchase.machineId),
+        eq(operatorMachineDisplayName.operatorId, purchase.operatorId),
       ),
     )
     .where(and(...machineConds))
     .groupBy(
       purchase.machineId,
-      organizationMachineDisplayName.orgDisplayName,
+      operatorMachineDisplayName.orgDisplayName,
       machine.internalName,
     );
 
@@ -376,7 +378,7 @@ export async function buildOrgDashboard(
   }));
 
   const entityConds = [
-    eq(purchase.organizationId, organizationId),
+    eq(purchase.operatorId, organizationId),
     gte(purchaseBerlinDay, startDate),
     lte(purchaseBerlinDay, endDate),
     isNotNull(purchase.businessEntityId),
@@ -414,7 +416,7 @@ export async function buildOrgDashboard(
   const monthBucket = berlinCalendarMonthStart(berlinDayMonth);
 
   const monthlyConds = [
-    eq(pMonth.organizationId, organizationId),
+    eq(pMonth.operatorId, organizationId),
     gte(berlinDayMonth, pgDate(startDate)),
     lte(berlinDayMonth, pgDate(endDate)),
   ];
@@ -426,7 +428,7 @@ export async function buildOrgDashboard(
     db,
     {
       machineId: pMonth.machineId,
-      organizationId: pMonth.organizationId,
+      operatorId: pMonth.operatorId,
       purchasedAt: pMonth.purchasedAt,
     },
   );

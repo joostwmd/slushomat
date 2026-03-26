@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { organization, operatorProduct } from "@slushomat/db/schema";
+import { operator, operatorProduct } from "@slushomat/db/schema";
 import { router } from "../init";
 import { adminProcedure } from "../procedures";
 
@@ -18,15 +18,15 @@ export const adminOperatorProductRouter = router({
     .input(z.object({ organizationId: z.string().min(1) }))
     .output(z.array(listItemSchema))
     .query(async ({ ctx, input }) => {
-      const [org] = await ctx.db
-        .select({ id: organization.id })
-        .from(organization)
-        .where(eq(organization.id, input.organizationId))
+      const [op] = await ctx.db
+        .select({ id: operator.id })
+        .from(operator)
+        .where(eq(operator.id, input.organizationId))
         .limit(1);
-      if (!org) {
+      if (!op) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Organization not found",
+          message: "Operator not found",
         });
       }
 
@@ -39,7 +39,7 @@ export const adminOperatorProductRouter = router({
           createdAt: operatorProduct.createdAt,
         })
         .from(operatorProduct)
-        .where(eq(operatorProduct.organizationId, input.organizationId))
+        .where(eq(operatorProduct.operatorId, input.organizationId))
         .orderBy(desc(operatorProduct.createdAt));
     }),
 });

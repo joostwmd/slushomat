@@ -1,16 +1,16 @@
 import { randomUUID } from "node:crypto";
-import { and, desc, eq, max } from "drizzle-orm";
+import { and, desc, eq, isNull, max } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { db } from "@slushomat/db";
 import {
+  document,
   machine,
-  organizationMachineDisplayName,
-} from "@slushomat/db/schema";
-import {
   operatorContract,
   operatorContractChange,
   operatorContractVersion,
+  operatorMachine,
+  operatorMachineDisplayName,
 } from "@slushomat/db/schema";
 import {
   CONTRACT_PDF_MAX_BYTES,
@@ -20,11 +20,13 @@ import {
 } from "../../lib/contract-pdf";
 import {
   assertAtMostOneActiveContractForMachine,
-  assertBusinessEntityBelongsToOrg,
+  assertBusinessEntityBelongsToOperator,
 } from "../../lib/machine-lifecycle";
-import { ensureOrganizationMachineDisplayNames } from "../../lib/organization-machine-display-name";
+import { ensureOperatorMachineDisplayNames } from "../../lib/operator-machine-display-name";
 import { router } from "../init";
 import { adminProcedure } from "../procedures";
+
+const CONTRACT_VERSION_ENTITY_TYPE = "operator_contract_version" as const;
 
 const contractStatusSchema = z.enum(["draft", "active", "terminated"]);
 
@@ -37,40 +39,41 @@ const versionPayloadSchema = z.object({
   notes: z.string().nullable().optional(),
 });
 
+const versionOutputFields = z.object({
+  id: z.string(),
+  entityId: z.string(),
+  versionNumber: z.number(),
+  status: contractStatusSchema,
+  effectiveDate: z.date(),
+  endedAt: z.date().nullable(),
+  monthlyRentInCents: z.number(),
+  revenueShareBasisPoints: z.number(),
+  pdfBucket: z.string().nullable(),
+  pdfObjectPath: z.string().nullable(),
+  notes: z.string().nullable(),
+  createdAt: z.date(),
+});
+
 const operatorContractGetOutput = z.object({
   contract: z.object({
     id: z.string(),
-    organizationId: z.string(),
+    operatorId: z.string(),
     businessEntityId: z.string(),
-    machineId: z.string(),
+    operatorMachineId: z.string(),
     currentVersionId: z.string().nullable(),
     createdAt: z.date(),
     updatedAt: z.date(),
   }),
-  versions: z.array(
-    z.object({
-      id: z.string(),
-      entityId: z.string(),
-      versionNumber: z.number(),
-      status: contractStatusSchema,
-      effectiveDate: z.date(),
-      endedAt: z.date().nullable(),
-      monthlyRentInCents: z.number(),
-      revenueShareBasisPoints: z.number(),
-      pdfBucket: z.string().nullable(),
-      pdfObjectPath: z.string().nullable(),
-      notes: z.string().nullable(),
-      createdAt: z.date(),
-    }),
-  ),
+  versions: z.array(versionOutputFields),
 });
 
 type OperatorContractGetOutput = z.infer<typeof operatorContractGetOutput>;
 
 const contractListItemSchema = z.object({
   id: z.string(),
-  organizationId: z.string(),
+  operatorId: z.string(),
   businessEntityId: z.string(),
+  operatorMachineId: z.string(),
   machineId: z.string(),
   machineInternalName: z.string(),
   machineOrgDisplayName: z.string().nullable(),
@@ -101,10 +104,10 @@ async function requireMachine(dbClient: typeof db, machineId: string) {
   }
 }
 
-async function requireContractForOrg(
+async function requireContractForOperator(
   dbClient: typeof db,
   contractId: string,
-  organizationId: string,
+  operatorId: string,
 ) {
   const [row] = await dbClient
     .select()
@@ -112,7 +115,7 @@ async function requireContractForOrg(
     .where(
       and(
         eq(operatorContract.id, contractId),
-        eq(operatorContract.organizationId, organizationId),
+        eq(operatorContract.operatorId, operatorId),
       ),
     )
     .limit(1);
@@ -149,12 +152,33 @@ async function requireContractVersion(
   return row;
 }
 
+async function getOpenOperatorMachineForTriple(
+  dbClient: typeof db,
+  operatorId: string,
+  machineId: string,
+  businessEntityId: string,
+) {
+  const [row] = await dbClient
+    .select({ id: operatorMachine.id })
+    .from(operatorMachine)
+    .where(
+      and(
+        eq(operatorMachine.operatorId, operatorId),
+        eq(operatorMachine.machineId, machineId),
+        eq(operatorMachine.businessEntityId, businessEntityId),
+        isNull(operatorMachine.undeployedAt),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
+}
+
 export const adminOperatorContractRouter = router({
   list: adminProcedure
     .input(
       z
         .object({
-          organizationId: z.string().optional(),
+          operatorId: z.string().optional(),
           machineId: z.string().optional(),
           businessEntityId: z.string().optional(),
           status: contractStatusSchema.optional(),
@@ -165,11 +189,11 @@ export const adminOperatorContractRouter = router({
     .output(z.array(contractListItemSchema))
     .query(async ({ ctx, input }) => {
       const conds = [];
-      if (input.organizationId) {
-        conds.push(eq(operatorContract.organizationId, input.organizationId));
+      if (input.operatorId) {
+        conds.push(eq(operatorContract.operatorId, input.operatorId));
       }
       if (input.machineId) {
-        conds.push(eq(operatorContract.machineId, input.machineId));
+        conds.push(eq(operatorMachine.machineId, input.machineId));
       }
       if (input.businessEntityId) {
         conds.push(
@@ -183,11 +207,12 @@ export const adminOperatorContractRouter = router({
       const q = ctx.db
         .select({
           id: operatorContract.id,
-          organizationId: operatorContract.organizationId,
+          operatorId: operatorContract.operatorId,
           businessEntityId: operatorContract.businessEntityId,
-          machineId: operatorContract.machineId,
+          operatorMachineId: operatorContract.operatorMachineId,
+          machineId: operatorMachine.machineId,
           machineInternalName: machine.internalName,
-          machineOrgDisplayName: organizationMachineDisplayName.orgDisplayName,
+          machineOrgDisplayName: operatorMachineDisplayName.orgDisplayName,
           currentVersionId: operatorContract.currentVersionId,
           createdAt: operatorContract.createdAt,
           updatedAt: operatorContract.updatedAt,
@@ -197,8 +222,8 @@ export const adminOperatorContractRouter = router({
           monthlyRentInCents: operatorContractVersion.monthlyRentInCents,
           revenueShareBasisPoints:
             operatorContractVersion.revenueShareBasisPoints,
-          pdfBucket: operatorContractVersion.pdfBucket,
-          pdfObjectPath: operatorContractVersion.pdfObjectPath,
+          pdfBucket: document.bucket,
+          pdfObjectPath: document.objectPath,
           notes: operatorContractVersion.notes,
         })
         .from(operatorContract)
@@ -206,17 +231,29 @@ export const adminOperatorContractRouter = router({
           operatorContractVersion,
           eq(operatorContract.currentVersionId, operatorContractVersion.id),
         )
-        .innerJoin(machine, eq(operatorContract.machineId, machine.id))
+        .innerJoin(
+          operatorMachine,
+          eq(operatorContract.operatorMachineId, operatorMachine.id),
+        )
+        .innerJoin(machine, eq(operatorMachine.machineId, machine.id))
         .leftJoin(
-          organizationMachineDisplayName,
+          document,
+          and(
+            eq(document.entityId, operatorContractVersion.id),
+            eq(document.entityType, CONTRACT_VERSION_ENTITY_TYPE),
+            eq(document.kind, "contract"),
+          ),
+        )
+        .leftJoin(
+          operatorMachineDisplayName,
           and(
             eq(
-              organizationMachineDisplayName.organizationId,
-              operatorContract.organizationId,
+              operatorMachineDisplayName.operatorId,
+              operatorContract.operatorId,
             ),
             eq(
-              organizationMachineDisplayName.machineId,
-              operatorContract.machineId,
+              operatorMachineDisplayName.machineId,
+              operatorMachine.machineId,
             ),
           ),
         );
@@ -248,8 +285,30 @@ export const adminOperatorContractRouter = router({
         });
       }
       const versions = await ctx.db
-        .select()
+        .select({
+          id: operatorContractVersion.id,
+          entityId: operatorContractVersion.entityId,
+          versionNumber: operatorContractVersion.versionNumber,
+          status: operatorContractVersion.status,
+          effectiveDate: operatorContractVersion.effectiveDate,
+          endedAt: operatorContractVersion.endedAt,
+          monthlyRentInCents: operatorContractVersion.monthlyRentInCents,
+          revenueShareBasisPoints:
+            operatorContractVersion.revenueShareBasisPoints,
+          notes: operatorContractVersion.notes,
+          createdAt: operatorContractVersion.createdAt,
+          pdfBucket: document.bucket,
+          pdfObjectPath: document.objectPath,
+        })
         .from(operatorContractVersion)
+        .leftJoin(
+          document,
+          and(
+            eq(document.entityId, operatorContractVersion.id),
+            eq(document.entityType, CONTRACT_VERSION_ENTITY_TYPE),
+            eq(document.kind, "contract"),
+          ),
+        )
         .where(eq(operatorContractVersion.entityId, input.id))
         .orderBy(desc(operatorContractVersion.versionNumber));
       return {
@@ -264,7 +323,7 @@ export const adminOperatorContractRouter = router({
   create: adminProcedure
     .input(
       z.object({
-        organizationId: z.string().min(1),
+        operatorId: z.string().min(1),
         businessEntityId: z.string().min(1),
         machineId: z.string().min(1),
         version: versionPayloadSchema,
@@ -277,12 +336,26 @@ export const adminOperatorContractRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await assertBusinessEntityBelongsToOrg(
+      await assertBusinessEntityBelongsToOperator(
         ctx.db,
         input.businessEntityId,
-        input.organizationId,
+        input.operatorId,
       );
       await requireMachine(ctx.db, input.machineId);
+
+      const openOm = await getOpenOperatorMachineForTriple(
+        ctx.db,
+        input.operatorId,
+        input.machineId,
+        input.businessEntityId,
+      );
+      if (!openOm) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "No open machine assignment for this operator, machine, and business entity. Start a deployment first.",
+        });
+      }
 
       if (input.version.status === "active") {
         await assertAtMostOneActiveContractForMachine(
@@ -299,9 +372,9 @@ export const adminOperatorContractRouter = router({
       await ctx.db.transaction(async (tx) => {
         await tx.insert(operatorContract).values({
           id: baseId,
-          organizationId: input.organizationId,
+          operatorId: input.operatorId,
           businessEntityId: input.businessEntityId,
-          machineId: input.machineId,
+          operatorMachineId: openOm.id,
           currentVersionId: null,
         });
 
@@ -332,7 +405,7 @@ export const adminOperatorContractRouter = router({
           .set({ currentVersionId: versionId })
           .where(eq(operatorContract.id, baseId));
 
-        await ensureOrganizationMachineDisplayNames(tx, input.organizationId, [
+        await ensureOperatorMachineDisplayNames(tx, input.operatorId, [
           input.machineId,
         ]);
       });
@@ -344,7 +417,7 @@ export const adminOperatorContractRouter = router({
     .input(
       z.object({
         contractId: z.string().min(1),
-        organizationId: z.string().min(1),
+        operatorId: z.string().min(1),
         version: versionPayloadSchema,
       }),
     )
@@ -355,16 +428,22 @@ export const adminOperatorContractRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const contract = await requireContractForOrg(
+      const contract = await requireContractForOperator(
         ctx.db,
         input.contractId,
-        input.organizationId,
+        input.operatorId,
       );
 
-      if (input.version.status === "active") {
+      const [om] = await ctx.db
+        .select({ machineId: operatorMachine.machineId })
+        .from(operatorMachine)
+        .where(eq(operatorMachine.id, contract.operatorMachineId))
+        .limit(1);
+
+      if (input.version.status === "active" && om) {
         await assertAtMostOneActiveContractForMachine(
           ctx.db,
-          contract.machineId,
+          om.machineId,
           input.contractId,
         );
       }
@@ -416,7 +495,7 @@ export const adminOperatorContractRouter = router({
       z.object({
         contractId: z.string().min(1),
         versionId: z.string().min(1),
-        organizationId: z.string().min(1),
+        operatorId: z.string().min(1),
         contentType: z.string().min(1),
         fileSizeBytes: z
           .number()
@@ -434,10 +513,10 @@ export const adminOperatorContractRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await requireContractForOrg(
+      await requireContractForOperator(
         ctx.db,
         input.contractId,
-        input.organizationId,
+        input.operatorId,
       );
       await requireContractVersion(
         ctx.db,
@@ -456,7 +535,7 @@ export const adminOperatorContractRouter = router({
       z.object({
         contractId: z.string().min(1),
         versionId: z.string().min(1),
-        organizationId: z.string().min(1),
+        operatorId: z.string().min(1),
         objectPath: z.string().min(1),
       }),
     )
@@ -467,10 +546,10 @@ export const adminOperatorContractRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await requireContractForOrg(
+      await requireContractForOperator(
         ctx.db,
         input.contractId,
-        input.organizationId,
+        input.operatorId,
       );
       await requireContractVersion(
         ctx.db,
@@ -494,13 +573,28 @@ export const adminOperatorContractRouter = router({
       }
 
       const bucket = storage.bucketName;
-      await ctx.db
-        .update(operatorContractVersion)
-        .set({
-          pdfBucket: bucket,
-          pdfObjectPath: input.objectPath,
-        })
-        .where(eq(operatorContractVersion.id, input.versionId));
+      const docId = randomUUID();
+
+      await ctx.db.transaction(async (tx) => {
+        await tx
+          .delete(document)
+          .where(
+            and(
+              eq(document.entityType, CONTRACT_VERSION_ENTITY_TYPE),
+              eq(document.entityId, input.versionId),
+              eq(document.kind, "contract"),
+            ),
+          );
+
+        await tx.insert(document).values({
+          id: docId,
+          kind: "contract",
+          entityType: CONTRACT_VERSION_ENTITY_TYPE,
+          entityId: input.versionId,
+          bucket,
+          objectPath: input.objectPath,
+        });
+      });
 
       return { bucket, objectPath: input.objectPath };
     }),

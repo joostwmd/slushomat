@@ -8,28 +8,43 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
+import { operator } from "./auth";
 import { businessEntity } from "./business-entity";
 import { machine } from "./machines";
 import { operatorProduct } from "./operator-product";
 
-export const machineSlotEnum = pgEnum("machine_slot", [
+export const machineSlotEnum = pgEnum("machine_slot_side", [
   "left",
   "middle",
   "right",
 ]);
 
-export const machineDeployment = pgTable(
-  "machine_deployment",
+export const operatorMachineStatusEnum = pgEnum("operator_machine_status", [
+  "active",
+  "inactive",
+  "killed",
+]);
+
+/**
+ * Assignment of a physical machine to an operator at a business entity,
+ * with deployment window and killswitch status.
+ */
+export const operatorMachine = pgTable(
+  "operator_machine",
   {
     id: text("id").primaryKey(),
+    operatorId: text("operator_id")
+      .notNull()
+      .references(() => operator.id, { onDelete: "cascade" }),
     machineId: text("machine_id")
       .notNull()
       .references(() => machine.id, { onDelete: "restrict" }),
     businessEntityId: text("business_entity_id")
       .notNull()
       .references(() => businessEntity.id, { onDelete: "restrict" }),
-    startedAt: timestamp("started_at").defaultNow().notNull(),
-    endedAt: timestamp("ended_at"),
+    status: operatorMachineStatusEnum("status").notNull().default("active"),
+    deployedAt: timestamp("deployed_at").defaultNow().notNull(),
+    undeployedAt: timestamp("undeployed_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
@@ -37,23 +52,22 @@ export const machineDeployment = pgTable(
       .notNull(),
   },
   (table) => [
-    index("machine_deployment_machine_id_idx").on(table.machineId),
-    index("machine_deployment_business_entity_id_idx").on(
-      table.businessEntityId,
-    ),
-    uniqueIndex("machine_deployment_one_open_per_machine_uidx")
+    index("operator_machine_operator_id_idx").on(table.operatorId),
+    index("operator_machine_machine_id_idx").on(table.machineId),
+    index("operator_machine_business_entity_id_idx").on(table.businessEntityId),
+    uniqueIndex("operator_machine_one_open_per_machine_uidx")
       .on(table.machineId)
-      .where(sql`${table.endedAt} is null`),
+      .where(sql`${table.undeployedAt} is null`),
   ],
 );
 
-export const machineSlotConfig = pgTable(
-  "machine_slot_config",
+export const machineSlot = pgTable(
+  "machine_slot",
   {
     id: text("id").primaryKey(),
-    machineDeploymentId: text("machine_deployment_id")
+    operatorMachineId: text("operator_machine_id")
       .notNull()
-      .references(() => machineDeployment.id, { onDelete: "cascade" }),
+      .references(() => operatorMachine.id, { onDelete: "cascade" }),
     slot: machineSlotEnum("slot").notNull(),
     operatorProductId: text("operator_product_id").references(
       () => operatorProduct.id,
@@ -66,41 +80,40 @@ export const machineSlotConfig = pgTable(
       .notNull(),
   },
   (table) => [
-    index("machine_slot_config_deployment_id_idx").on(
-      table.machineDeploymentId,
-    ),
-    uniqueIndex("machine_slot_config_deployment_slot_uidx").on(
-      table.machineDeploymentId,
+    index("machine_slot_operator_machine_id_idx").on(table.operatorMachineId),
+    uniqueIndex("machine_slot_operator_machine_slot_uidx").on(
+      table.operatorMachineId,
       table.slot,
     ),
   ],
 );
 
-export const machineDeploymentRelations = relations(
-  machineDeployment,
+export const operatorMachineRelations = relations(
+  operatorMachine,
   ({ one, many }) => ({
+    operator: one(operator, {
+      fields: [operatorMachine.operatorId],
+      references: [operator.id],
+    }),
     machine: one(machine, {
-      fields: [machineDeployment.machineId],
+      fields: [operatorMachine.machineId],
       references: [machine.id],
     }),
     businessEntity: one(businessEntity, {
-      fields: [machineDeployment.businessEntityId],
+      fields: [operatorMachine.businessEntityId],
       references: [businessEntity.id],
     }),
-    slotConfigs: many(machineSlotConfig),
+    slots: many(machineSlot),
   }),
 );
 
-export const machineSlotConfigRelations = relations(
-  machineSlotConfig,
-  ({ one }) => ({
-    deployment: one(machineDeployment, {
-      fields: [machineSlotConfig.machineDeploymentId],
-      references: [machineDeployment.id],
-    }),
-    operatorProduct: one(operatorProduct, {
-      fields: [machineSlotConfig.operatorProductId],
-      references: [operatorProduct.id],
-    }),
+export const machineSlotRelations = relations(machineSlot, ({ one }) => ({
+  operatorMachine: one(operatorMachine, {
+    fields: [machineSlot.operatorMachineId],
+    references: [operatorMachine.id],
   }),
-);
+  operatorProduct: one(operatorProduct, {
+    fields: [machineSlot.operatorProductId],
+    references: [operatorProduct.id],
+  }),
+}));

@@ -9,4 +9,6 @@ export * from "./operator-contract";
 export * from "./machine-lifecycle";
 export * from "./purchase";
 export * from "./analytics-purchase-daily-summary";
-export * from "./organization-machine-display";
+export * from "./operator-machine-display";
+export * from "./document";
+export * from "./invoice";

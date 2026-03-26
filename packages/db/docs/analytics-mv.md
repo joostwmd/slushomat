@@ -43,7 +43,7 @@ After it succeeds, refresh your DB client — materialized views often appear un
 | Command        | Role |
 |----------------|------|
 | `pnpm db:push` | Tables / enums from Drizzle schema (not this MV). |
-| `pnpm db:migrate` | Runs `0000_analytics_purchase_daily_summary.sql` → **creates MV + indexes**. |
+| `pnpm db:migrate` | Runs `0000_analytics_purchase_daily_summary.sql` → **MV + indexes + audit triggers**. |
 
 ## `REFRESH MATERIALIZED VIEW CONCURRENTLY`
 

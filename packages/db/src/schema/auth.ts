@@ -42,8 +42,9 @@ export const session = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     impersonatedBy: text("impersonated_by"),
-    activeOrganizationId: text("active_organization_id"),
-    activeOrganizationSlug: text("active_organization_slug"),
+    /** Better Auth “active organization” — DB column renamed to match operator terminology. */
+    activeOperatorId: text("active_operator_id"),
+    activeOperatorSlug: text("active_operator_slug"),
   },
   (table) => [index("session_userId_idx").on(table.userId)],
 );
@@ -66,6 +67,7 @@ export const account = pgTable(
     password: text("password"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
+      .defaultNow()
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
   },
@@ -88,8 +90,9 @@ export const verification = pgTable(
   (table) => [index("verification_identifier_idx").on(table.identifier)],
 );
 
-export const organization = pgTable(
-  "organization",
+/** Tenant (Better Auth organization plugin — physical table `operator`). */
+export const operator = pgTable(
+  "operator",
   {
     id: text("id").primaryKey(),
     name: text("name").notNull(),
@@ -98,16 +101,16 @@ export const organization = pgTable(
     createdAt: timestamp("created_at").notNull(),
     metadata: text("metadata"),
   },
-  (table) => [uniqueIndex("organization_slug_uidx").on(table.slug)],
+  (table) => [uniqueIndex("operator_slug_uidx").on(table.slug)],
 );
 
 export const member = pgTable(
   "member",
   {
     id: text("id").primaryKey(),
-    organizationId: text("organization_id")
+    operatorId: text("operator_id")
       .notNull()
-      .references(() => organization.id, { onDelete: "cascade" }),
+      .references(() => operator.id, { onDelete: "cascade" }),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -115,7 +118,7 @@ export const member = pgTable(
     createdAt: timestamp("created_at").notNull(),
   },
   (table) => [
-    index("member_organizationId_idx").on(table.organizationId),
+    index("member_operator_id_idx").on(table.operatorId),
     index("member_userId_idx").on(table.userId),
   ],
 );
@@ -124,9 +127,9 @@ export const invitation = pgTable(
   "invitation",
   {
     id: text("id").primaryKey(),
-    organizationId: text("organization_id")
+    operatorId: text("operator_id")
       .notNull()
-      .references(() => organization.id, { onDelete: "cascade" }),
+      .references(() => operator.id, { onDelete: "cascade" }),
     email: text("email").notNull(),
     role: text("role"),
     status: text("status").default("pending").notNull(),
@@ -137,7 +140,7 @@ export const invitation = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
   },
   (table) => [
-    index("invitation_organizationId_idx").on(table.organizationId),
+    index("invitation_operator_id_idx").on(table.operatorId),
     index("invitation_email_idx").on(table.email),
   ],
 );
@@ -196,15 +199,16 @@ export const accountRelations = relations(account, ({ one }) => ({
   }),
 }));
 
-export const organizationRelations = relations(organization, ({ many }) => ({
+export const operatorRelations = relations(operator, ({ many }) => ({
   members: many(member),
   invitations: many(invitation),
 }));
 
 export const memberRelations = relations(member, ({ one }) => ({
-  organization: one(organization, {
-    fields: [member.organizationId],
-    references: [organization.id],
+  /** Named `organization` for Better Auth compatibility; FK is `operator_id`. */
+  organization: one(operator, {
+    fields: [member.operatorId],
+    references: [operator.id],
   }),
   user: one(user, {
     fields: [member.userId],
@@ -213,12 +217,19 @@ export const memberRelations = relations(member, ({ one }) => ({
 }));
 
 export const invitationRelations = relations(invitation, ({ one }) => ({
-  organization: one(organization, {
-    fields: [invitation.organizationId],
-    references: [organization.id],
+  organization: one(operator, {
+    fields: [invitation.operatorId],
+    references: [operator.id],
   }),
   user: one(user, {
     fields: [invitation.inviterId],
     references: [user.id],
   }),
 }));
+
+/**
+ * Better Auth’s Drizzle schema bundle still keys the org plugin as `organization`;
+ * same physical table as {@link operator}.
+ */
+export const organization = operator;
+export const organizationRelations = operatorRelations;
