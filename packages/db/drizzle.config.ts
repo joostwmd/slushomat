@@ -11,6 +11,7 @@ const schemaFiles = [
   "./src/schema/auth.ts",
   "./src/schema/machines.ts",
   "./src/schema/product-image.ts",
+  "./src/schema/product-image-with-public-url.ts",
   "./src/schema/template-products.ts",
   "./src/schema/operator-product.ts",
   "./src/schema/business-entity.ts",

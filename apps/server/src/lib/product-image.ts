@@ -41,6 +41,25 @@ export function pathPrefixOperatorProduct(operatorProductId: string): string {
  * Single bucket for template and operator product images; `product_image.bucket` must match
  * before calling `removeObject`.
  */
+/**
+ * Turn `product_image_with_public_url.image_url` (path starting with `/storage/v1/object/public/...`)
+ * into a full HTTPS URL using the configured Supabase project URL.
+ */
+export function resolvePublicStorageImageUrl(
+  supabaseProjectUrl: string | undefined,
+  imagePathFromView: string | null | undefined,
+): string | null {
+  if (!supabaseProjectUrl?.trim() || !imagePathFromView) {
+    return null;
+  }
+  const base = supabaseProjectUrl.replace(/\/$/, "");
+  try {
+    return new URL(imagePathFromView, `${base}/`).href;
+  } catch {
+    return null;
+  }
+}
+
 export function getProductImageStorage(): SupabaseStorageService {
   const url = env.SUPABASE_URL;
   const key = env.SUPABASE_SERVICE_ROLE_KEY;

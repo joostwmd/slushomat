@@ -2,6 +2,7 @@ export * from "./audit-record-version";
 export * from "./auth";
 export * from "./machines";
 export * from "./product-image";
+export * from "./product-image-with-public-url";
 export * from "./template-products";
 export * from "./operator-product";
 export * from "./business-entity";

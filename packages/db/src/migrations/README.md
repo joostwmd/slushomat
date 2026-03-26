@@ -18,3 +18,7 @@ When you adopt versioned migrations, baseline from production (`drizzle-kit pull
 - **`pnpm db:migrate`** — `0000_analytics_purchase_daily_summary.sql`: analytics MV + indexes, then audit schema/triggers.
 
 Docs: `packages/db/docs/analytics-mv.md`
+
+## Normal views (product images)
+
+- **`product_image_with_public_url`** — defined in Drizzle as `pgView(...).as(...)` in `src/schema/product-image-with-public-url.ts`. Apply with **`pnpm db:push`** (same idea as analytics MV: not in a versioned SQL file). Full HTTPS URL is built in the API from `SUPABASE_URL` + `image_url` path.

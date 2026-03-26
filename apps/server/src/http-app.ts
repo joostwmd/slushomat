@@ -13,6 +13,7 @@ import { machineAuthMiddleware } from "./middleware/machine-auth";
 import { requestLogger } from "./middleware/logger";
 import { sessionMiddleware } from "./middleware/session";
 import { machinePurchaseRoute } from "./routes/machine-purchase";
+import { machineProductsRoute } from "./routes/machine-products";
 import type { AppEnv } from "./types";
 
 const app = new Hono<AppEnv>();
@@ -44,10 +45,11 @@ app.use("*", requestLogger);
 app.use("*", sessionMiddleware);
 
 // 5b. Machine API (X-Machine-Key, X-Machine-Id)
-const machinePurchaseApi = new Hono<AppEnv>();
-machinePurchaseApi.use(machineAuthMiddleware);
-machinePurchaseApi.route("/", machinePurchaseRoute);
-app.route("/api/machine/purchase", machinePurchaseApi);
+const machineApi = new Hono<AppEnv>();
+machineApi.use(machineAuthMiddleware);
+machineApi.route("/purchase", machinePurchaseRoute);
+machineApi.route("/products", machineProductsRoute);
+app.route("/api/machine", machineApi);
 
 // 6. tRPC
 app.use(

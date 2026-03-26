@@ -36,6 +36,14 @@ echo
 echo
 
 if [[ -n "${MACHINE_API_KEY:-}" && -n "${MACHINE_ID:-}" ]]; then
+  echo "=== GET ${BASE_URL}/api/machine/products"
+  echo "    X-Machine-Key: ***  X-Machine-Id: ${MACHINE_ID}"
+  curl "${CURL_OPTS[@]}" -X GET \
+    -H "X-Machine-Key: ${MACHINE_API_KEY}" \
+    -H "X-Machine-Id: ${MACHINE_ID}" \
+    "${BASE_URL}/api/machine/products"
+  echo
+  echo
   echo "=== POST ${BASE_URL}/api/machine/purchase (minimal body, expect 400 or 422)"
   echo "    X-Machine-Key: ***  X-Machine-Id: ${MACHINE_ID}"
   curl "${CURL_OPTS[@]}" -X POST -H "Content-Type: application/json" \
@@ -46,7 +54,10 @@ if [[ -n "${MACHINE_API_KEY:-}" && -n "${MACHINE_ID:-}" ]]; then
   echo
 else
   echo "=== Skipped /api/machine/purchase (set MACHINE_API_KEY and MACHINE_ID to test)"
-  echo "=== Expect 401 without credentials:"
+  echo "=== Expect 401 without credentials (GET products):"
+  curl "${CURL_OPTS[@]}" -X GET "${BASE_URL}/api/machine/products"
+  echo
+  echo "=== Expect 401 without credentials (POST purchase):"
   curl "${CURL_OPTS[@]}" -X POST -H "Content-Type: application/json" \
     -d '{}' "${BASE_URL}/api/machine/purchase"
   echo
