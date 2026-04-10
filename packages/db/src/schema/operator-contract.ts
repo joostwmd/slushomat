@@ -1,7 +1,7 @@
 import { integer, pgEnum, text, timestamp } from "drizzle-orm/pg-core";
 
 import { defineVersionedEntity } from "../model-factory";
-import { operator } from "./auth";
+import { organization } from "./auth";
 import { businessEntity } from "./business-entity";
 import { operatorMachine } from "./machine-lifecycle";
 
@@ -14,7 +14,7 @@ export const contractStatusEnum = pgEnum("contract_status", [
 const contractModel = defineVersionedEntity({
   name: "operator_contract",
   scope: "org",
-  references: { operator },
+  references: { organization },
   baseColumns: {
     businessEntityId: text("business_entity_id")
       .notNull()

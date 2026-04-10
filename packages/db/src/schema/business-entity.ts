@@ -1,13 +1,13 @@
 import { text } from "drizzle-orm/pg-core";
 
 import { defineStaticEntity } from "../model-factory";
-import { operator } from "./auth";
+import { organization } from "./auth";
 
 export const businessEntity = defineStaticEntity({
   name: "business_entity",
   scope: "org",
   softDelete: true,
-  references: { operator },
+  references: { organization },
   columns: {
     name: text("name").notNull(),
     legalName: text("legal_name").notNull(),

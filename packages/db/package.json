@@ -22,9 +22,11 @@
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "db:seed": "tsx scripts/seed-load.ts"
   },
   "dependencies": {
+    "@slushomat/supabase": "workspace:*",
     "@slushomat/env": "workspace:*",
     "dotenv": "catalog:",
     "drizzle-orm": "^0.45.1",
@@ -35,6 +37,7 @@
     "@slushomat/config": "workspace:*",
     "@types/pg": "^8.16.0",
     "drizzle-kit": "^0.31.8",
+    "tsx": "^4.19.2",
     "typescript": "^5"
   }
 }

@@ -409,6 +409,9 @@ importers:
       '@slushomat/env':
         specifier: workspace:*
         version: link:../env
+      '@slushomat/supabase':
+        specifier: workspace:*
+        version: link:../supabase
       dotenv:
         specifier: 'catalog:'
         version: 17.3.1
@@ -431,6 +434,9 @@ importers:
       drizzle-kit:
         specifier: ^0.31.8
         version: 0.31.10
+      tsx:
+        specifier: ^4.19.2
+        version: 4.21.0
       typescript:
         specifier: ^5
         version: 5.9.3

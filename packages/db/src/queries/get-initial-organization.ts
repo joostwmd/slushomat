@@ -1,7 +1,7 @@
 import { eq, asc } from "drizzle-orm";
 
 import { db } from "../connection";
-import { member, operator } from "../schema";
+import { member, organization } from "../schema";
 
 /** Avoid named `.prepare()` — pools + PgBouncer can reuse connections and hit Postgres `42P05` (“already exists”). */
 export async function getInitialOrganization(
@@ -9,11 +9,11 @@ export async function getInitialOrganization(
 ): Promise<{ id: string; slug: string } | null> {
   const rows = await db
     .select({
-      id: operator.id,
-      slug: operator.slug,
+      id: organization.id,
+      slug: organization.slug,
     })
     .from(member)
-    .innerJoin(operator, eq(member.operatorId, operator.id))
+    .innerJoin(organization, eq(member.organizationId, organization.id))
     .where(eq(member.userId, userId))
     .orderBy(asc(member.createdAt))
     .limit(1);

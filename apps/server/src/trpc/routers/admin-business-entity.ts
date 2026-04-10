@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { businessEntity, operator } from "@slushomat/db/schema";
+import { businessEntity, organization } from "@slushomat/db/schema";
 import { assertBusinessEntityBelongsToOperator } from "../../lib/machine-lifecycle";
 import { router } from "../init";
 import { adminProcedure } from "../procedures";
@@ -29,9 +29,9 @@ async function requireOperator(
   operatorId: string,
 ) {
   const [row] = await ctx.db
-    .select({ id: operator.id })
-    .from(operator)
-    .where(eq(operator.id, operatorId))
+    .select({ id: organization.id })
+    .from(organization)
+    .where(eq(organization.id, operatorId))
     .limit(1);
   if (!row) {
     throw new TRPCError({

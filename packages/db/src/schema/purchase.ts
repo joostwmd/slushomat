@@ -6,7 +6,7 @@ import {
   timestamp,
 } from "drizzle-orm/pg-core";
 
-import { operator } from "./auth";
+import { organization } from "./auth";
 import { businessEntity } from "./business-entity";
 import { machineSlot } from "./machine-lifecycle";
 import { machine } from "./machines";
@@ -24,7 +24,7 @@ export const purchase = pgTable(
       .references(() => machine.id, { onDelete: "restrict" }),
     operatorId: text("operator_id")
       .notNull()
-      .references(() => operator.id, { onDelete: "restrict" }),
+      .references(() => organization.id, { onDelete: "restrict" }),
     businessEntityId: text("business_entity_id").references(
       () => businessEntity.id,
       { onDelete: "set null" },

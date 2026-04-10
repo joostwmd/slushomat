@@ -22,7 +22,7 @@ export interface DefineVersionedEntityConfig {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   versionColumns: Record<string, any>;
   references?: {
-    operator?: RefTable;
+    organization?: RefTable;
     user?: RefTable;
   };
 }
@@ -35,10 +35,10 @@ export function defineVersionedEntity(config: DefineVersionedEntityConfig) {
 
   if (
     (scope === "org" || scope === "org-user") &&
-    !references?.operator
+    !references?.organization
   ) {
     throw new Error(
-      `defineVersionedEntity("${name}"): scope "${scope}" requires references.operator`,
+      `defineVersionedEntity("${name}"): scope "${scope}" requires references.organization`,
     );
   }
   if (
@@ -50,7 +50,7 @@ export function defineVersionedEntity(config: DefineVersionedEntityConfig) {
     );
   }
 
-  const operatorTable = references?.operator;
+  const organizationTable = references?.organization;
   const userTable = references?.user;
   const versionTableName = `${name}_version`;
   const changeTableName = `${name}_change`;
@@ -87,7 +87,7 @@ export function defineVersionedEntity(config: DefineVersionedEntityConfig) {
         ? {
             operatorId: text("operator_id")
               .notNull()
-              .references(() => operatorTable.id, { onDelete: "cascade" }),
+              .references(() => organizationTable.id, { onDelete: "cascade" }),
           }
         : {}),
       ...(scope === "user" || scope === "org-user"

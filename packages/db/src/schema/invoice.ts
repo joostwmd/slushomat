@@ -10,7 +10,7 @@ import {
   timestamp,
 } from "drizzle-orm/pg-core";
 
-import { operator } from "./auth";
+import { organization } from "./auth";
 import { businessEntity } from "./business-entity";
 import { operatorContract } from "./operator-contract";
 
@@ -35,7 +35,7 @@ export const invoice = pgTable(
     id: text("id").primaryKey(),
     operatorId: text("operator_id")
       .notNull()
-      .references(() => operator.id, { onDelete: "restrict" }),
+      .references(() => organization.id, { onDelete: "restrict" }),
     businessEntityId: text("business_entity_id")
       .notNull()
       .references(() => businessEntity.id, { onDelete: "restrict" }),
@@ -86,9 +86,9 @@ export const invoiceLineItem = pgTable(
 );
 
 export const invoiceRelations = relations(invoice, ({ one, many }) => ({
-  operator: one(operator, {
+  organization: one(organization, {
     fields: [invoice.operatorId],
-    references: [operator.id],
+    references: [organization.id],
   }),
   businessEntity: one(businessEntity, {
     fields: [invoice.businessEntityId],

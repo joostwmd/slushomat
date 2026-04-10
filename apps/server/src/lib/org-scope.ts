@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "@slushomat/db";
-import { member, operator } from "@slushomat/db/schema";
+import { member, organization } from "@slushomat/db/schema";
 
 /** DB handle or Drizzle transaction — both support `.select()` / `.insert()` / etc. */
 type DrizzleTransaction = Parameters<
@@ -19,9 +19,9 @@ export async function getOperatorIdForSlug(
   slug: string,
 ): Promise<string> {
   const [row] = await dbClient
-    .select({ id: operator.id })
-    .from(operator)
-    .where(eq(operator.slug, slug))
+    .select({ id: organization.id })
+    .from(organization)
+    .where(eq(organization.slug, slug))
     .limit(1);
   if (!row) {
     throw new TRPCError({
@@ -43,7 +43,9 @@ export async function assertUserMemberOfOrg(
   const [row] = await dbClient
     .select({ id: member.id })
     .from(member)
-    .where(and(eq(member.userId, userId), eq(member.operatorId, operatorId)))
+    .where(
+      and(eq(member.userId, userId), eq(member.organizationId, operatorId)),
+    )
     .limit(1);
   if (!row) {
     throw new TRPCError({

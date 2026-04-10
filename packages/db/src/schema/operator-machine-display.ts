@@ -7,7 +7,7 @@ import {
   timestamp,
 } from "drizzle-orm/pg-core";
 
-import { operator } from "./auth";
+import { organization } from "./auth";
 import { machine } from "./machines";
 
 /**
@@ -19,7 +19,7 @@ export const operatorMachineDisplayName = pgTable(
   {
     operatorId: text("operator_id")
       .notNull()
-      .references(() => operator.id, { onDelete: "cascade" }),
+      .references(() => organization.id, { onDelete: "cascade" }),
     machineId: text("machine_id")
       .notNull()
       .references(() => machine.id, { onDelete: "cascade" }),
@@ -39,9 +39,9 @@ export const operatorMachineDisplayName = pgTable(
 export const operatorMachineDisplayNameRelations = relations(
   operatorMachineDisplayName,
   ({ one }) => ({
-    operator: one(operator, {
+    organization: one(organization, {
       fields: [operatorMachineDisplayName.operatorId],
-      references: [operator.id],
+      references: [organization.id],
     }),
     machine: one(machine, {
       fields: [operatorMachineDisplayName.machineId],

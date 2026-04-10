@@ -5,7 +5,7 @@ import type * as schema from "@slushomat/db/schema";
 import {
   analyticsPurchaseDailySummary,
   machine,
-  operator,
+  organization,
   operatorMachineDisplayName,
   purchase,
 } from "@slushomat/db/schema";
@@ -183,16 +183,16 @@ export async function buildPlatformDashboard(
   const topOrgRows = await db
     .select({
       organizationId: purchase.operatorId,
-      name: operator.name,
+      name: organization.name,
       grossCents: grossSum,
       purchaseCount: count().as("purchaseCount"),
     })
     .from(purchase)
-    .innerJoin(operator, eq(purchase.operatorId, operator.id))
+    .innerJoin(organization, eq(purchase.operatorId, organization.id))
     .where(
       and(gte(purchaseBerlinDay, startDate), lte(purchaseBerlinDay, endDate)),
     )
-    .groupBy(purchase.operatorId, operator.name)
+    .groupBy(purchase.operatorId, organization.name)
     .orderBy(desc(grossSum))
     .limit(20);
 

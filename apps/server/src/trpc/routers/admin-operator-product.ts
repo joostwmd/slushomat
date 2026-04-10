@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { operator, operatorProduct } from "@slushomat/db/schema";
+import { organization, operatorProduct } from "@slushomat/db/schema";
 import { router } from "../init";
 import { adminProcedure } from "../procedures";
 
@@ -19,9 +19,9 @@ export const adminOperatorProductRouter = router({
     .output(z.array(listItemSchema))
     .query(async ({ ctx, input }) => {
       const [op] = await ctx.db
-        .select({ id: operator.id })
-        .from(operator)
-        .where(eq(operator.id, input.organizationId))
+        .select({ id: organization.id })
+        .from(organization)
+        .where(eq(organization.id, input.organizationId))
         .limit(1);
       if (!op) {
         throw new TRPCError({

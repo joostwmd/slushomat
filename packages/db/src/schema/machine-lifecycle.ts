@@ -8,7 +8,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-import { operator } from "./auth";
+import { organization } from "./auth";
 import { businessEntity } from "./business-entity";
 import { machine } from "./machines";
 import { operatorProduct } from "./operator-product";
@@ -35,7 +35,7 @@ export const operatorMachine = pgTable(
     id: text("id").primaryKey(),
     operatorId: text("operator_id")
       .notNull()
-      .references(() => operator.id, { onDelete: "cascade" }),
+      .references(() => organization.id, { onDelete: "cascade" }),
     machineId: text("machine_id")
       .notNull()
       .references(() => machine.id, { onDelete: "restrict" }),
@@ -91,9 +91,9 @@ export const machineSlot = pgTable(
 export const operatorMachineRelations = relations(
   operatorMachine,
   ({ one, many }) => ({
-    operator: one(operator, {
+    organization: one(organization, {
       fields: [operatorMachine.operatorId],
-      references: [operator.id],
+      references: [organization.id],
     }),
     machine: one(machine, {
       fields: [operatorMachine.machineId],

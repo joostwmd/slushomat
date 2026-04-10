@@ -14,7 +14,7 @@ import {
   machine,
   machineVersion,
   member,
-  operator,
+  organization,
   operatorContract,
   operatorContractVersion,
   operatorMachine,
@@ -77,25 +77,25 @@ export const adminCustomerRouter = router({
 
       const q = ctx.db
         .select({
-          id: operator.id,
-          name: operator.name,
-          slug: operator.slug,
-          createdAt: operator.createdAt,
+          id: organization.id,
+          name: organization.name,
+          slug: organization.slug,
+          createdAt: organization.createdAt,
           machineCount: sql<number>`coalesce(${activeMachineCounts.n}, 0)::int`.mapWith(
             Number,
           ),
         })
-        .from(operator)
+        .from(organization)
         .leftJoin(
           activeMachineCounts,
-          eq(operator.id, activeMachineCounts.operatorId),
+          eq(organization.id, activeMachineCounts.operatorId),
         );
 
       const rows = input.search?.trim()
         ? await q
-            .where(ilike(operator.name, `%${input.search.trim()}%`))
-            .orderBy(desc(operator.createdAt))
-        : await q.orderBy(desc(operator.createdAt));
+            .where(ilike(organization.name, `%${input.search.trim()}%`))
+            .orderBy(desc(organization.createdAt))
+        : await q.orderBy(desc(organization.createdAt));
 
       return rows;
     }),
@@ -113,13 +113,13 @@ export const adminCustomerRouter = router({
     .query(async ({ ctx, input }) => {
       const [row] = await ctx.db
         .select({
-          id: operator.id,
-          name: operator.name,
-          slug: operator.slug,
-          createdAt: operator.createdAt,
+          id: organization.id,
+          name: organization.name,
+          slug: organization.slug,
+          createdAt: organization.createdAt,
         })
-        .from(operator)
-        .where(eq(operator.id, input.organizationId))
+        .from(organization)
+        .where(eq(organization.id, input.organizationId))
         .limit(1);
       if (!row) {
         throw new TRPCError({
@@ -255,9 +255,9 @@ export const adminCustomerRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const [org] = await ctx.db
-        .select({ id: operator.id })
-        .from(operator)
-        .where(eq(operator.id, input.organizationId))
+        .select({ id: organization.id })
+        .from(organization)
+        .where(eq(organization.id, input.organizationId))
         .limit(1);
       if (!org) {
         throw new TRPCError({
@@ -277,7 +277,7 @@ export const adminCustomerRouter = router({
         .innerJoin(user, eq(member.userId, user.id))
         .where(
           and(
-            eq(member.operatorId, input.organizationId),
+            eq(member.organizationId, input.organizationId),
             eq(member.role, "owner"),
           ),
         )
@@ -292,9 +292,9 @@ export const adminCustomerRouter = router({
     .output(z.object({ count: z.number().int() }))
     .mutation(async ({ ctx, input }) => {
       const [org] = await ctx.db
-        .select({ id: operator.id })
-        .from(operator)
-        .where(eq(operator.id, input.organizationId))
+        .select({ id: organization.id })
+        .from(organization)
+        .where(eq(organization.id, input.organizationId))
         .limit(1);
       if (!org) {
         throw new TRPCError({

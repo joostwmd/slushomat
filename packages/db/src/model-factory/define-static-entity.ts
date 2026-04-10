@@ -3,7 +3,7 @@ import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 export type StaticEntityScope = "org" | "user" | "org-user" | "app";
 
-/** Table with an `id` column (e.g. `operator`, `user` from auth schema). */
+/** Table with an `id` column (e.g. `organization`, `user` from auth schema). */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type RefTable = any;
 
@@ -15,9 +15,9 @@ export interface DefineStaticEntityConfig {
   /** Drizzle column builders, e.g. `{ name: text("name").notNull() }`. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   columns: Record<string, any>;
-  /** Required for `org` / `org-user` — pass e.g. `operator` from auth schema. */
+  /** Required for `org` / `org-user` — pass `organization` from auth schema. */
   references?: {
-    operator?: RefTable;
+    organization?: RefTable;
     user?: RefTable;
   };
 }
@@ -30,10 +30,10 @@ export function defineStaticEntity(config: DefineStaticEntityConfig): any {
 
   if (
     (scope === "org" || scope === "org-user") &&
-    !references?.operator
+    !references?.organization
   ) {
     throw new Error(
-      `defineStaticEntity("${name}"): scope "${scope}" requires references.operator`,
+      `defineStaticEntity("${name}"): scope "${scope}" requires references.organization`,
     );
   }
   if (
@@ -45,7 +45,7 @@ export function defineStaticEntity(config: DefineStaticEntityConfig): any {
     );
   }
 
-  const operatorTable = references?.operator;
+  const organizationTable = references?.organization;
   const userTable = references?.user;
 
   const orgPart =
@@ -53,7 +53,7 @@ export function defineStaticEntity(config: DefineStaticEntityConfig): any {
       ? {
           operatorId: text("operator_id")
             .notNull()
-            .references(() => operatorTable.id, { onDelete: "cascade" }),
+            .references(() => organizationTable.id, { onDelete: "cascade" }),
         }
       : {};
 

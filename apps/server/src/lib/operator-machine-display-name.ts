@@ -1,7 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 
 import type { db } from "@slushomat/db";
-import { operator, operatorMachineDisplayName } from "@slushomat/db/schema";
+import { organization, operatorMachineDisplayName } from "@slushomat/db/schema";
 
 type DbClient =
   | typeof db
@@ -37,9 +37,9 @@ export async function ensureOperatorMachineDisplayNames(
   if (missing.length === 0) return;
 
   const [op] = await dbClient
-    .select({ name: operator.name })
-    .from(operator)
-    .where(eq(operator.id, operatorId))
+    .select({ name: organization.name })
+    .from(organization)
+    .where(eq(organization.id, operatorId))
     .limit(1);
 
   const label = defaultOperatorMachineDisplayName(op?.name ?? "");

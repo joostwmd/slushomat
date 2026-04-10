@@ -17,6 +17,7 @@
     "db:studio": "turbo -F @slushomat/db db:studio",
     "db:generate": "turbo -F @slushomat/db db:generate",
     "db:migrate": "turbo -F @slushomat/db db:migrate",
+    "db:seed": "pnpm --filter @slushomat/db db:seed",
     "auth:generate": "DOTENV_CONFIG_PATH=apps/server/.env npx auth@latest generate --config packages/auth/src/index.ts",
     "check": "oxlint && oxfmt --write",
     "test": "vitest run",
